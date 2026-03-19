@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(239, 183, 54, 0.22), transparent 30%),
+    radial-gradient(circle at right center, rgba(171, 60, 39, 0.16), transparent 25%),
+    linear-gradient(180deg, #f8f1e3 0%, #f5e9d3 46%, #efe3cd 100%);
+  color: #1e1b18;
+}
+
+.mesh-card {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.76)),
+    radial-gradient(circle at top right, rgba(239, 183, 54, 0.24), transparent 30%);
+}
+
+.hero-grid {
+  background-size: 18px 18px;
+}
+

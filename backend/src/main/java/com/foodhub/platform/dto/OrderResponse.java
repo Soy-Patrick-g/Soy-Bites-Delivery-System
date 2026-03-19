@@ -1,0 +1,26 @@
+package com.foodhub.platform.dto;
+
+import com.foodhub.platform.model.OrderStatus;
+import com.foodhub.platform.model.PaymentStatus;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+
+public record OrderResponse(
+        Long id,
+        String restaurantName,
+        String customerName,
+        OrderStatus status,
+        PaymentStatus paymentStatus,
+        String paymentReference,
+        String deliveryAddress,
+        Double distanceKm,
+        BigDecimal subtotal,
+        BigDecimal deliveryFee,
+        BigDecimal total,
+        Instant createdAt,
+        List<OrderItemResponse> items,
+        PaymentInitializationResponse payment
+) {
+}
+
