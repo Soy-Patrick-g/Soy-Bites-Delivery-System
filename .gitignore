@@ -6,11 +6,11 @@ frontend/out/
 .vscode/
 *.log
 .env
+.env.example
 .env.local
-backend/.env
+backend/.env.example
 backend/src/main/resources/application-local.yml
 backend/src/main/resources/application-local.example.yml
 backend/src/main/resources/application.yml
 backend/src/main/resources/application.example.yml
 backend/tools/
-backend/.env.example

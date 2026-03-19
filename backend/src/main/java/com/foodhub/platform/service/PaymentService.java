@@ -4,11 +4,15 @@ import com.foodhub.platform.dto.PaymentInitializationResponse;
 import com.foodhub.platform.model.FoodOrder;
 import com.foodhub.platform.model.PaymentStatus;
 import com.foodhub.platform.model.PaymentTransaction;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.foodhub.platform.repository.PaymentTransactionRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -20,6 +24,7 @@ public class PaymentService {
 
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.paystack.enabled:false}")
     private boolean paystackEnabled;
@@ -33,9 +38,12 @@ public class PaymentService {
     @Value("${app.paystack.callback-url}")
     private String callbackUrl;
 
-    public PaymentService(PaymentTransactionRepository paymentTransactionRepository, RestClient.Builder restClientBuilder) {
+    public PaymentService(PaymentTransactionRepository paymentTransactionRepository,
+                          RestClient.Builder restClientBuilder,
+                          ObjectMapper objectMapper) {
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.restClient = restClientBuilder.build();
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -95,7 +103,7 @@ public class PaymentService {
 
         PaystackVerifyEnvelope response = restClient.get()
                 .uri(paystackBaseUrl + "/transaction/verify/{reference}", reference)
-                .header("Authorization", "Bearer " + paystackSecretKey)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + paystackSecretKey)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .body(PaystackVerifyEnvelope.class);
@@ -105,6 +113,15 @@ public class PaymentService {
         }
 
         String paystackStatus = response.data().status();
+        if (response.data().amount() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Paystack did not return a verified amount");
+        }
+
+        BigDecimal verifiedAmount = BigDecimal.valueOf(response.data().amount()).movePointLeft(2);
+        if (verifiedAmount.compareTo(transaction.getOrder().getTotal()) != 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Verified amount does not match the order total");
+        }
+
         PaymentStatus paymentStatus = switch (paystackStatus == null ? "" : paystackStatus.toLowerCase()) {
             case "success" -> PaymentStatus.PAID;
             case "failed", "abandoned" -> PaymentStatus.FAILED;
@@ -120,14 +137,15 @@ public class PaymentService {
     private PaymentInitializationResponse initializeWithPaystack(FoodOrder order, String reference) {
         PaystackInitializeEnvelope response = restClient.post()
                 .uri(paystackBaseUrl + "/transaction/initialize")
-                .header("Authorization", "Bearer " + paystackSecretKey)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + paystackSecretKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .body(Map.of(
                         "email", order.getCustomer().getEmail(),
-                        "amount", order.getTotal().movePointRight(2).intValueExact(),
+                        "amount", order.getTotal().movePointRight(2).longValueExact(),
                         "reference", reference,
-                        "callback_url", callbackUrl
+                        "callback_url", callbackUrl,
+                        "metadata", metadataFor(order)
                 ))
                 .retrieve()
                 .body(PaystackInitializeEnvelope.class);
@@ -153,11 +171,23 @@ public class PaymentService {
     private record PaystackVerifyEnvelope(Boolean status, String message, PaystackVerifyData data) {
     }
 
-    private record PaystackVerifyData(String status, String reference) {
+    private record PaystackVerifyData(String status, String reference, Long amount) {
     }
 
     private boolean isSimulated(PaymentTransaction transaction) {
         String authorizationUrl = transaction.getAuthorizationUrl();
         return authorizationUrl != null && authorizationUrl.contains("mode=demo");
+    }
+
+    private String metadataFor(FoodOrder order) {
+        try {
+            return objectMapper.writeValueAsString(Map.of(
+                    "orderId", order.getId(),
+                    "customerEmail", order.getCustomer().getEmail(),
+                    "restaurantName", order.getRestaurant().getName()
+            ));
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to serialize Paystack metadata");
+        }
     }
 }

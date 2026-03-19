@@ -245,7 +245,7 @@ function Shell({ children }: { children: ReactNode }) {
     <main className="mx-auto max-w-7xl px-6 py-12">
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">Checkout</p>
-        <h1 className="mt-2 font-serif text-5xl text-ink">Secure payment simulation with Paystack-ready flow</h1>
+        <h1 className="mt-2 font-serif text-5xl text-ink">Secure checkout with Paystack payment flow</h1>
       </div>
       {children}
     </main>
