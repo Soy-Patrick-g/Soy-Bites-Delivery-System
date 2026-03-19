@@ -12,3 +12,4 @@ backend/src/main/resources/application-local.example.yml
 backend/src/main/resources/application.yml
 backend/src/main/resources/application.example.yml
 backend/tools/
+backend/.env.example
