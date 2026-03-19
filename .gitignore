@@ -7,6 +7,7 @@ frontend/out/
 *.log
 .env
 .env.local
+backend/.env
 backend/src/main/resources/application-local.yml
 backend/src/main/resources/application-local.example.yml
 backend/src/main/resources/application.yml
