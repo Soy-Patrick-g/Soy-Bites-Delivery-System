@@ -10,6 +10,7 @@ import com.foodhub.platform.repository.MenuItemRepository;
 import com.foodhub.platform.repository.RestaurantRepository;
 import com.foodhub.platform.repository.ReviewRepository;
 import java.math.BigDecimal;
+import org.springframework.core.annotation.Order;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class DataSeeder {
 
     @Bean
+    @Order(1)
     CommandLineRunner seedDatabase(AppUserRepository appUserRepository,
                                    RestaurantRepository restaurantRepository,
                                    MenuItemRepository menuItemRepository,
@@ -26,15 +28,21 @@ public class DataSeeder {
                                    PasswordEncoder passwordEncoder) {
         return args -> {
             if (appUserRepository.count() > 0) {
+                if (!appUserRepository.existsByEmailIgnoreCase("rider@foodhub.dev")) {
+                    AppUser rider = createUser("Kofi Rider", "rider@foodhub.dev", UserRole.DELIVERY, 5.5725, -0.1760, passwordEncoder);
+                    appUserRepository.save(rider);
+                }
                 return;
             }
 
             AppUser admin = createUser("Platform Admin", "admin@foodhub.dev", UserRole.ADMIN, 6.6732, -1.5654, passwordEncoder);
             AppUser vendor = createUser("Vendor Owner", "vendor@foodhub.dev", UserRole.RESTAURANT, 5.6037, -0.1870, passwordEncoder);
             AppUser customer = createUser("Ama Customer", "user@foodhub.dev", UserRole.USER, 5.5600, -0.2050, passwordEncoder);
+            AppUser rider = createUser("Kofi Rider", "rider@foodhub.dev", UserRole.DELIVERY, 5.5725, -0.1760, passwordEncoder);
             appUserRepository.save(admin);
             appUserRepository.save(vendor);
             appUserRepository.save(customer);
+            appUserRepository.save(rider);
 
             Restaurant grill = createRestaurant("Savannah Grill", "Charcoal grilled rice bowls, shawarma, and suya-inspired sides.", "African Fusion", "Oxford Street 18", "Accra", 5.5650, -0.1900, vendor, new BigDecimal("4.60"));
             Restaurant sushi = createRestaurant("Harbor Sushi Lab", "Fresh sushi platters and poke bowls for lunch and dinner rushes.", "Japanese", "Marine Drive 5", "Accra", 5.5500, -0.2100, vendor, new BigDecimal("4.80"));

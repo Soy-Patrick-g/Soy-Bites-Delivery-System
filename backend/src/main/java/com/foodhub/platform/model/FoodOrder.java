@@ -36,6 +36,10 @@ public class FoodOrder {
     @JoinColumn(name = "restaurant_id", nullable = false)
     private Restaurant restaurant;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_person_id")
+    private AppUser deliveryPerson;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.RECEIVED;
@@ -115,6 +119,14 @@ public class FoodOrder {
 
     public void setRestaurant(Restaurant restaurant) {
         this.restaurant = restaurant;
+    }
+
+    public AppUser getDeliveryPerson() {
+        return deliveryPerson;
+    }
+
+    public void setDeliveryPerson(AppUser deliveryPerson) {
+        this.deliveryPerson = deliveryPerson;
     }
 
     public OrderStatus getStatus() {

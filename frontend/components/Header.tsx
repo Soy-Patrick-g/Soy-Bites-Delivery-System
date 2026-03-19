@@ -7,6 +7,10 @@ import { useAuth } from "@/components/AuthProvider";
 export function Header() {
   const { isReady, logout, session } = useAuth();
   const router = useRouter();
+  const isUser = session?.role === "USER";
+  const isDelivery = session?.role === "DELIVERY";
+  const isRestaurant = session?.role === "RESTAURANT";
+  const isAdmin = session?.role === "ADMIN";
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-ink/85 backdrop-blur">
@@ -16,9 +20,16 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-5 text-sm text-cream/80">
           <Link href="/">Discover</Link>
-          <Link href="/checkout">Checkout</Link>
-          <Link href="/orders/1">Track Order</Link>
-          <Link href="/admin">Admin</Link>
+          {isReady && !session ? <Link href="/checkout">Checkout</Link> : null}
+          {isReady && isUser ? (
+            <>
+              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/checkout">Checkout</Link>
+            </>
+          ) : null}
+          {isReady && isDelivery ? <Link href="/delivery/dashboard">Dashboard</Link> : null}
+          {isReady && isAdmin ? <Link href="/admin">Dashboard</Link> : null}
+          {isReady && isRestaurant ? <Link href="/restaurant/dashboard">Dashboard</Link> : null}
           {isReady && session ? (
             <>
               <span className="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-[0.16em] text-cream/70">

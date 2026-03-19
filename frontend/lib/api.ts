@@ -2,9 +2,13 @@ import axios from "axios";
 import {
   AdminDashboard,
   AuthSession,
+  DeliveryDashboard,
+  DeliveryRegisterRequest,
   LoginRequest,
+  OwnerDashboard,
   Order,
   PlaceOrderPayload,
+  RestaurantOwnerRegisterRequest,
   RestaurantDetail,
   RestaurantSummary
 } from "@/lib/types";
@@ -61,6 +65,17 @@ export async function getOrder(id: string): Promise<Order> {
   }
 }
 
+export async function getCurrentUserOrderHistory(token: string): Promise<Order[]> {
+  try {
+    const { data } = await api.get<Order[]>("/orders/history", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Loading order history");
+  }
+}
+
 export async function getDashboard(token: string): Promise<AdminDashboard> {
   try {
     const { data } = await api.get<AdminDashboard>("/admin/dashboard", {
@@ -78,6 +93,24 @@ export async function login(request: LoginRequest): Promise<AuthSession> {
     return data;
   } catch (error) {
     throw toMessage(error, "Login");
+  }
+}
+
+export async function registerRestaurantOwner(request: RestaurantOwnerRegisterRequest): Promise<AuthSession> {
+  try {
+    const { data } = await api.post<AuthSession>("/owner/register", request);
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Restaurant registration");
+  }
+}
+
+export async function registerDeliveryPerson(request: DeliveryRegisterRequest): Promise<AuthSession> {
+  try {
+    const { data } = await api.post<AuthSession>("/delivery/register", request);
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Delivery registration");
   }
 }
 
@@ -100,6 +133,61 @@ export async function verifyPayment(reference: string): Promise<Order> {
     return data;
   } catch (error) {
     throw toMessage(error, "Verifying payment");
+  }
+}
+
+export async function getOwnerDashboard(token: string): Promise<OwnerDashboard> {
+  try {
+    const { data } = await api.get<OwnerDashboard>("/owner/dashboard", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Loading restaurant dashboard");
+  }
+}
+
+export async function getDeliveryDashboard(token: string): Promise<DeliveryDashboard> {
+  try {
+    const { data } = await api.get<DeliveryDashboard>("/delivery/dashboard", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Loading delivery dashboard");
+  }
+}
+
+export async function claimDeliveryOrder(token: string, orderId: number): Promise<Order> {
+  try {
+    const { data } = await api.patch<Order>(`/delivery/orders/${orderId}/claim`, undefined, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Claiming delivery ${orderId}`);
+  }
+}
+
+export async function completeDeliveryOrder(token: string, orderId: number): Promise<Order> {
+  try {
+    const { data } = await api.patch<Order>(`/delivery/orders/${orderId}/complete`, undefined, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Completing delivery ${orderId}`);
+  }
+}
+
+export async function advanceOwnerOrder(token: string, orderId: number): Promise<Order> {
+  try {
+    const { data } = await api.patch<Order>(`/owner/orders/${orderId}/advance`, undefined, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Advancing order ${orderId}`);
   }
 }
 

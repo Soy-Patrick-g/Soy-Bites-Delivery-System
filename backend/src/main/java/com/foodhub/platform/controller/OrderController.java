@@ -5,6 +5,7 @@ import com.foodhub.platform.dto.PlaceOrderRequest;
 import com.foodhub.platform.service.OrderService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,9 +34,14 @@ public class OrderController {
         return orderService.getOrder(id);
     }
 
+    @GetMapping("/history")
+    public List<OrderResponse> getCurrentUserOrders(Authentication authentication) {
+        return orderService.getOrdersForCurrentUser(authentication.getName());
+    }
+
     @GetMapping
-    public List<OrderResponse> getOrdersByCustomer(@RequestParam String email) {
-        return orderService.getOrdersByCustomer(email);
+    public List<OrderResponse> getOrdersByCustomer(@RequestParam String email, Authentication authentication) {
+        return orderService.getOrdersByCustomerForRequester(authentication.getName(), email);
     }
 
     @GetMapping("/payment/verify")

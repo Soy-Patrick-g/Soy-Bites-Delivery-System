@@ -59,6 +59,8 @@ export type Order = {
   id: number;
   restaurantName: string;
   customerName: string;
+  deliveryPersonName?: string | null;
+  deliveryPersonEmail?: string | null;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentReference: string;
@@ -80,7 +82,21 @@ export type AdminDashboard = {
   topRestaurants: RestaurantSummary[];
 };
 
-export type UserRole = "USER" | "RESTAURANT" | "ADMIN";
+export type OwnerDashboard = {
+  ownerName: string;
+  ownerEmail: string;
+  restaurants: RestaurantSummary[];
+  orders: Order[];
+};
+
+export type DeliveryDashboard = {
+  driverName: string;
+  driverEmail: string;
+  availableOrders: Order[];
+  assignedOrders: Order[];
+};
+
+export type UserRole = "USER" | "DELIVERY" | "RESTAURANT" | "ADMIN";
 
 export type AuthSession = {
   token: string;
@@ -104,4 +120,27 @@ export type PlaceOrderPayload = {
     menuItemId: number;
     quantity: number;
   }>;
+};
+
+export type RestaurantOwnerRegisterRequest = {
+  fullName: string;
+  email: string;
+  password: string;
+  restaurantName: string;
+  description: string;
+  cuisine: string;
+  address: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type DeliveryRegisterRequest = {
+  fullName: string;
+  email: string;
+  password: string;
+  city: string;
+  vehicleType: string;
+  latitude: number;
+  longitude: number;
 };

@@ -10,6 +10,7 @@ import com.foodhub.platform.model.MenuItem;
 import com.foodhub.platform.model.OrderItem;
 import com.foodhub.platform.model.OrderStatus;
 import com.foodhub.platform.model.Restaurant;
+import com.foodhub.platform.model.UserRole;
 import com.foodhub.platform.repository.AppUserRepository;
 import com.foodhub.platform.repository.MenuItemRepository;
 import com.foodhub.platform.repository.OrderRepository;
@@ -112,6 +113,23 @@ public class OrderService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersForCurrentUser(String email) {
+        return getOrdersByCustomer(email);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersByCustomerForRequester(String requesterEmail, String targetEmail) {
+        AppUser requester = appUserRepository.findByEmailIgnoreCase(requesterEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requester not found"));
+
+        if (!requester.getEmail().equalsIgnoreCase(targetEmail) && requester.getRole() != UserRole.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only view your own order history");
+        }
+
+        return getOrdersByCustomer(targetEmail);
+    }
+
     @Transactional
     public OrderResponse advanceOrder(Long orderId) {
         FoodOrder order = orderRepository.findById(orderId)
@@ -150,6 +168,8 @@ public class OrderService {
                 order.getId(),
                 order.getRestaurant().getName(),
                 order.getCustomer().getFullName(),
+                order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getFullName(),
+                order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getEmail(),
                 order.getStatus(),
                 order.getPaymentStatus(),
                 order.getPaymentReference(),

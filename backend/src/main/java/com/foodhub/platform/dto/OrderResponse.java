@@ -10,6 +10,8 @@ public record OrderResponse(
         Long id,
         String restaurantName,
         String customerName,
+        String deliveryPersonName,
+        String deliveryPersonEmail,
         OrderStatus status,
         PaymentStatus paymentStatus,
         String paymentReference,
@@ -23,4 +25,3 @@ public record OrderResponse(
         PaymentInitializationResponse payment
 ) {
 }
-

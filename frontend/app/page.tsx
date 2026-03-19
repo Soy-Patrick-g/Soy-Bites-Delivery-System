@@ -54,10 +54,10 @@ export default function HomePage() {
                 Start checkout
               </Link>
               <Link
-                href="/admin"
+                href="/dashboard"
                 className="rounded-full border border-ink/15 px-6 py-3 text-sm font-semibold text-ink transition hover:bg-white/70"
               >
-                Open admin view
+                Open dashboard
               </Link>
             </div>
           </div>

@@ -80,6 +80,14 @@ export default async function OrderPage({ params }: OrderPageProps) {
               <span>{formatCurrency(order.total)}</span>
             </div>
           </div>
+          <div className="mt-6 rounded-2xl bg-cream px-4 py-4 text-sm text-ink/70">
+            <p className="font-semibold text-ink">Delivery rider</p>
+            <p className="mt-2">
+              {order.deliveryPersonName
+                ? `${order.deliveryPersonName}${order.deliveryPersonEmail ? ` (${order.deliveryPersonEmail})` : ""}`
+                : "A rider will appear here once the order has been claimed for delivery."}
+            </p>
+          </div>
           <p className="mt-6 rounded-2xl bg-olive/10 px-4 py-3 text-sm text-olive">
             Status updates can be pushed in real time later using WebSockets without changing the timeline component structure.
           </p>

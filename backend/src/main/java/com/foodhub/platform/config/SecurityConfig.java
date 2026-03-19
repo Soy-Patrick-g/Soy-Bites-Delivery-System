@@ -43,10 +43,12 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/api/auth/**").permitAll()
+                        .requestMatchers("/actuator/health", "/api/auth/**", "/api/owner/register", "/api/delivery/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/orders/payment/verify").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/orders/*").permitAll()
+                        .requestMatchers("/api/delivery/**").hasRole("DELIVERY")
+                        .requestMatchers("/api/owner/**").hasRole("RESTAURANT")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

@@ -27,10 +27,8 @@ export default function LoginPage() {
       const redirect = searchParams.get("redirect");
       if (redirect?.startsWith("/")) {
         router.push(redirect);
-      } else if (session.role === "ADMIN") {
-        router.push("/admin");
       } else {
-        router.push("/checkout?restaurant=1");
+        router.push("/");
       }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to sign in");
@@ -46,7 +44,7 @@ export default function LoginPage() {
           <p className="text-sm uppercase tracking-[0.22em] text-citrus">Login</p>
           <h1 className="mt-3 font-serif text-5xl">Sign in to use protected backend routes</h1>
           <p className="mt-5 text-sm leading-7 text-cream/72">
-            Use the seeded accounts to test customer checkout or the admin analytics dashboard with a stored JWT.
+            Use the seeded accounts to test customer checkout and the role-based dashboards with a stored JWT.
           </p>
 
           <div className="mt-8 space-y-4 text-sm">
@@ -58,6 +56,34 @@ export default function LoginPage() {
               <p className="font-semibold">Admin</p>
               <p className="mt-1 text-cream/70">admin@foodhub.dev / Password123!</p>
             </div>
+            <div className="rounded-3xl bg-white/8 p-4">
+              <p className="font-semibold">Restaurant owner</p>
+              <p className="mt-1 text-cream/70">vendor@foodhub.dev / Password123!</p>
+            </div>
+            <div className="rounded-3xl bg-white/8 p-4">
+              <p className="font-semibold">Delivery rider</p>
+              <p className="mt-1 text-cream/70">rider@foodhub.dev / Password123!</p>
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-[28px] border border-white/10 bg-white/6 p-5 text-sm">
+            <p className="font-semibold uppercase tracking-[0.18em] text-citrus">Want to sell on FoodHub?</p>
+            <p className="mt-3 leading-7 text-cream/72">
+              Restaurant owners can create their account, register a restaurant, and start processing incoming orders from the restaurant dashboard.
+            </p>
+            <Link href="/restaurant/register" className="mt-4 inline-flex font-semibold text-citrus">
+              Register restaurant
+            </Link>
+          </div>
+
+          <div className="mt-4 rounded-[28px] border border-white/10 bg-white/6 p-5 text-sm">
+            <p className="font-semibold uppercase tracking-[0.18em] text-citrus">Want to deliver orders?</p>
+            <p className="mt-3 leading-7 text-cream/72">
+              Delivery personnel can create a rider account, claim orders that are ready for drop-off, and mark deliveries complete from their own dashboard.
+            </p>
+            <Link href="/delivery/register" className="mt-4 inline-flex font-semibold text-citrus">
+              Register as rider
+            </Link>
           </div>
         </section>
 
@@ -97,11 +123,13 @@ export default function LoginPage() {
 
           <div className="mt-6 text-sm text-ink/68">
             <p>
-              Public pages still work without login, but checkout and admin analytics now expect a saved JWT.
+              Public pages still work without login, but checkout and role-based dashboards now expect a saved JWT.
             </p>
-            <Link href="/" className="mt-4 inline-flex font-semibold text-olive">
-              Back to discover
-            </Link>
+            <div className="mt-4 flex flex-wrap gap-4">
+              <Link href="/" className="inline-flex font-semibold text-olive">
+                Back to discover
+              </Link>
+            </div>
           </div>
         </section>
       </div>
