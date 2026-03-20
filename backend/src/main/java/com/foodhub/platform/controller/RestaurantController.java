@@ -7,6 +7,7 @@ import com.foodhub.platform.dto.ReviewResponse;
 import com.foodhub.platform.service.RestaurantService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,8 +42,7 @@ public class RestaurantController {
     }
 
     @PostMapping("/reviews")
-    public ReviewResponse addReview(@Valid @RequestBody ReviewRequest request) {
-        return restaurantService.addReview(request);
+    public ReviewResponse addReview(@Valid @RequestBody ReviewRequest request, Authentication authentication) {
+        return restaurantService.addReview(authentication.getName(), request);
     }
 }
-

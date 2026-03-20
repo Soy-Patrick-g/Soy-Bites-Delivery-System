@@ -17,6 +17,7 @@ import com.foodhub.platform.repository.AppUserRepository;
 import com.foodhub.platform.repository.MenuItemRepository;
 import com.foodhub.platform.repository.OrderRepository;
 import com.foodhub.platform.repository.RestaurantRepository;
+import com.foodhub.platform.repository.ReviewRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,7 @@ public class OrderService {
     private final RestaurantRepository restaurantRepository;
     private final MenuItemRepository menuItemRepository;
     private final OrderRepository orderRepository;
+    private final ReviewRepository reviewRepository;
     private final GeoService geoService;
     private final PaymentService paymentService;
 
@@ -40,12 +42,14 @@ public class OrderService {
                         RestaurantRepository restaurantRepository,
                         MenuItemRepository menuItemRepository,
                         OrderRepository orderRepository,
+                        ReviewRepository reviewRepository,
                         GeoService geoService,
                         PaymentService paymentService) {
         this.appUserRepository = appUserRepository;
         this.restaurantRepository = restaurantRepository;
         this.menuItemRepository = menuItemRepository;
         this.orderRepository = orderRepository;
+        this.reviewRepository = reviewRepository;
         this.geoService = geoService;
         this.paymentService = paymentService;
     }
@@ -296,6 +300,7 @@ public class OrderService {
                 order.getTotal(),
                 order.getCreatedAt(),
                 items,
+                reviewRepository.existsByOrderId(order.getId()),
                 payment
         );
     }

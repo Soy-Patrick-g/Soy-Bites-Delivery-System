@@ -193,6 +193,7 @@ public class OwnerPortalService {
                 order.getTotal(),
                 order.getCreatedAt(),
                 items,
+                false,
                 payment
         );
     }

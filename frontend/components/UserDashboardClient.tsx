@@ -133,6 +133,14 @@ export function UserDashboardClient() {
                   >
                     View order
                   </Link>
+                  {order.status === "DELIVERED" && !order.reviewed ? (
+                    <Link
+                      href={`/orders/${order.id}#review`}
+                      className="rounded-full border border-olive/15 bg-white px-4 py-2 text-sm font-semibold text-olive"
+                    >
+                      Review restaurant
+                    </Link>
+                  ) : null}
                   <Link
                     href={`/orders/${order.id}/receipt`}
                     className="rounded-full bg-ember px-4 py-2 text-sm font-semibold text-white"

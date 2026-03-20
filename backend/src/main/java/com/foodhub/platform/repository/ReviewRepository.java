@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findByRestaurantIdOrderByCreatedAtDesc(Long restaurantId);
     long countByRestaurantId(Long restaurantId);
+    boolean existsByOrderId(Long orderId);
 }
-

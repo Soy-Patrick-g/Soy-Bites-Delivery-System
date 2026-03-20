@@ -7,11 +7,14 @@ import com.foodhub.platform.dto.RestaurantSummaryResponse;
 import com.foodhub.platform.dto.ReviewRequest;
 import com.foodhub.platform.dto.ReviewResponse;
 import com.foodhub.platform.model.AppUser;
+import com.foodhub.platform.model.FoodOrder;
 import com.foodhub.platform.model.MenuItem;
+import com.foodhub.platform.model.OrderStatus;
 import com.foodhub.platform.model.Restaurant;
 import com.foodhub.platform.model.Review;
 import com.foodhub.platform.repository.AppUserRepository;
 import com.foodhub.platform.repository.MenuItemRepository;
+import com.foodhub.platform.repository.OrderRepository;
 import com.foodhub.platform.repository.RestaurantRepository;
 import com.foodhub.platform.repository.ReviewRepository;
 import java.math.BigDecimal;
@@ -31,17 +34,20 @@ public class RestaurantService {
     private final MenuItemRepository menuItemRepository;
     private final ReviewRepository reviewRepository;
     private final AppUserRepository appUserRepository;
+    private final OrderRepository orderRepository;
     private final GeoService geoService;
 
     public RestaurantService(RestaurantRepository restaurantRepository,
                              MenuItemRepository menuItemRepository,
                              ReviewRepository reviewRepository,
                              AppUserRepository appUserRepository,
+                             OrderRepository orderRepository,
                              GeoService geoService) {
         this.restaurantRepository = restaurantRepository;
         this.menuItemRepository = menuItemRepository;
         this.reviewRepository = reviewRepository;
         this.appUserRepository = appUserRepository;
+        this.orderRepository = orderRepository;
         this.geoService = geoService;
     }
 
@@ -101,15 +107,28 @@ public class RestaurantService {
     }
 
     @Transactional
-    public ReviewResponse addReview(ReviewRequest request) {
-        AppUser customer = appUserRepository.findByEmailIgnoreCase(request.customerEmail())
+    public ReviewResponse addReview(String requesterEmail, ReviewRequest request) {
+        AppUser customer = appUserRepository.findByEmailIgnoreCase(requesterEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
-        Restaurant restaurant = restaurantRepository.findById(request.restaurantId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Restaurant not found"));
+        FoodOrder order = orderRepository.findById(request.orderId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        if (!order.getCustomer().getId().equals(customer.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only review your own delivered orders");
+        }
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You can review a restaurant only after delivery");
+        }
+        if (reviewRepository.existsByOrderId(order.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This order has already been reviewed");
+        }
+
+        Restaurant restaurant = order.getRestaurant();
 
         Review review = new Review();
         review.setCustomer(customer);
         review.setRestaurant(restaurant);
+        review.setOrder(order);
         review.setRating(request.rating());
         review.setComment(request.comment());
         Review saved = reviewRepository.save(review);

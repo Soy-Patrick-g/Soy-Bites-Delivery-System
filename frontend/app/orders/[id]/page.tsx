@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OrderReviewPanel } from "@/components/OrderReviewPanel";
 import { StatusTimeline } from "@/components/StatusTimeline";
 import { formatCurrency, getOrder } from "@/lib/api";
 
@@ -97,6 +98,15 @@ export default async function OrderPage({ params }: OrderPageProps) {
             Status updates can be pushed in real time later using WebSockets without changing the timeline component structure.
           </p>
         </aside>
+      </section>
+
+      <section className="mt-8">
+        <OrderReviewPanel
+          orderId={order.id}
+          orderStatus={order.status}
+          restaurantName={order.restaurantName}
+          reviewed={order.reviewed}
+        />
       </section>
     </main>
   );

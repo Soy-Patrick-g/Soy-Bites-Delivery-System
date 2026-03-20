@@ -24,6 +24,7 @@ public record OrderResponse(
         BigDecimal total,
         Instant createdAt,
         List<OrderItemResponse> items,
+        boolean reviewed,
         PaymentInitializationResponse payment
 ) {
 }

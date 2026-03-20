@@ -145,6 +145,7 @@ public class DeliveryPortalService {
                 order.getTotal(),
                 order.getCreatedAt(),
                 items,
+                false,
                 payment
         );
     }

@@ -33,6 +33,12 @@ export type Review = {
   createdAt: string;
 };
 
+export type ReviewRequest = {
+  orderId: number;
+  rating: number;
+  comment?: string;
+};
+
 export type RestaurantSummary = {
   id: number;
   name: string;
@@ -91,6 +97,7 @@ export type Order = {
   total: number;
   createdAt: string;
   items: OrderItem[];
+  reviewed: boolean;
   payment?: PaymentInitialization | null;
 };
 

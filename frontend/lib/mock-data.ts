@@ -151,6 +151,7 @@ export const mockOrder: Order = {
     { id: 1, menuItemId: 101, name: "Jollof Fire Bowl", quantity: 1, unitPrice: 45, totalPrice: 45 },
     { id: 2, menuItemId: 102, name: "Suya Fries", quantity: 1, unitPrice: 20, totalPrice: 20 }
   ],
+  reviewed: false,
   payment: {
     provider: "PAYSTACK",
     reference: "FH-9001-1742286220000",

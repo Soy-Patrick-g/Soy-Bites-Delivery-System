@@ -28,6 +28,10 @@ public class Review {
     @JoinColumn(name = "restaurant_id", nullable = false)
     private Restaurant restaurant;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private FoodOrder order;
+
     @Column(nullable = false)
     private Integer rating;
 
@@ -66,6 +70,14 @@ public class Review {
         this.restaurant = restaurant;
     }
 
+    public FoodOrder getOrder() {
+        return order;
+    }
+
+    public void setOrder(FoodOrder order) {
+        this.order = order;
+    }
+
     public Integer getRating() {
         return rating;
     }
@@ -86,4 +98,3 @@ public class Review {
         return createdAt;
     }
 }
-

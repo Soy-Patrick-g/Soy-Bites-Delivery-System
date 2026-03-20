@@ -8,6 +8,8 @@ import {
   OrderBatch,
   OwnerDashboard,
   Order,
+  Review,
+  ReviewRequest,
   PlaceGroupOrderPayload,
   PlaceOrderPayload,
   RestaurantOwnerRegisterRequest,
@@ -122,6 +124,17 @@ export async function registerDeliveryPerson(request: DeliveryRegisterRequest): 
     return data;
   } catch (error) {
     throw toMessage(error, "Delivery registration");
+  }
+}
+
+export async function addRestaurantReview(token: string, payload: ReviewRequest): Promise<Review> {
+  try {
+    const { data } = await api.post<Review>("/restaurants/reviews", payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Submitting review");
   }
 }
 
