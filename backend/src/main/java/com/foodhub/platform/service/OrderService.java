@@ -2,7 +2,9 @@ package com.foodhub.platform.service;
 
 import com.foodhub.platform.dto.OrderItemResponse;
 import com.foodhub.platform.dto.OrderResponse;
+import com.foodhub.platform.dto.OrderBatchResponse;
 import com.foodhub.platform.dto.PaymentInitializationResponse;
+import com.foodhub.platform.dto.PlaceGroupOrderRequest;
 import com.foodhub.platform.dto.PlaceOrderRequest;
 import com.foodhub.platform.model.AppUser;
 import com.foodhub.platform.model.FoodOrder;
@@ -16,7 +18,9 @@ import com.foodhub.platform.repository.MenuItemRepository;
 import com.foodhub.platform.repository.OrderRepository;
 import com.foodhub.platform.repository.RestaurantRepository;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,11 +100,121 @@ public class OrderService {
         return toResponse(orderRepository.save(saved), payment);
     }
 
+    @Transactional
+    public OrderBatchResponse placeGroupOrder(PlaceGroupOrderRequest request) {
+        AppUser customer = appUserRepository.findByEmailIgnoreCase(request.customerEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
+
+        String groupReference = "FH-GRP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        var groupedRequests = request.items().stream()
+                .collect(java.util.stream.Collectors.groupingBy(itemRequest -> {
+                    MenuItem menuItem = menuItemRepository.findById(itemRequest.menuItemId())
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Menu item not found"));
+                    return menuItem.getRestaurant();
+                }));
+
+        List<FoodOrder> savedOrders = new ArrayList<>();
+        BigDecimal combinedSubtotal = BigDecimal.ZERO;
+        BigDecimal combinedDeliveryFee = BigDecimal.ZERO;
+
+        for (var entry : groupedRequests.entrySet()) {
+            Restaurant restaurant = entry.getKey();
+            FoodOrder order = new FoodOrder();
+            order.setCustomer(customer);
+            order.setRestaurant(restaurant);
+            order.setDeliveryAddress(request.deliveryAddress());
+            order.setDeliveryLatitude(request.deliveryLatitude());
+            order.setDeliveryLongitude(request.deliveryLongitude());
+            order.setGroupReference(groupReference);
+
+            BigDecimal subtotal = BigDecimal.ZERO;
+            for (var itemRequest : entry.getValue()) {
+                MenuItem menuItem = menuItemRepository.findById(itemRequest.menuItemId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Menu item not found"));
+
+                OrderItem orderItem = new OrderItem();
+                orderItem.setMenuItem(menuItem);
+                orderItem.setQuantity(itemRequest.quantity());
+                orderItem.setUnitPrice(menuItem.getPrice());
+                orderItem.setTotalPrice(menuItem.getPrice().multiply(BigDecimal.valueOf(itemRequest.quantity())));
+                subtotal = subtotal.add(orderItem.getTotalPrice());
+                order.addItem(orderItem);
+            }
+
+            double distanceKm = geoService.distanceInKm(
+                    request.deliveryLatitude(),
+                    request.deliveryLongitude(),
+                    restaurant.getLatitude(),
+                    restaurant.getLongitude()
+            );
+
+            BigDecimal deliveryFee = geoService.calculateDeliveryFee(distanceKm);
+            order.setDistanceKm(distanceKm);
+            order.setSubtotal(subtotal);
+            order.setDeliveryFee(deliveryFee);
+            order.setTotal(subtotal.add(deliveryFee));
+
+            savedOrders.add(orderRepository.save(order));
+            combinedSubtotal = combinedSubtotal.add(subtotal);
+            combinedDeliveryFee = combinedDeliveryFee.add(deliveryFee);
+        }
+
+        FoodOrder primaryOrder = savedOrders.get(0);
+        PaymentInitializationResponse payment = paymentService.initializeTransaction(
+                primaryOrder,
+                combinedSubtotal.add(combinedDeliveryFee),
+                "Combined multi-restaurant checkout"
+        );
+
+        List<FoodOrder> finalizedOrders = savedOrders.stream()
+                .map(order -> {
+                    order.setPaymentReference(payment.reference());
+                    order.setPaymentStatus(primaryOrder.getPaymentStatus());
+                    return orderRepository.save(order);
+                })
+                .toList();
+
+        return new OrderBatchResponse(
+                groupReference,
+                combinedSubtotal,
+                combinedDeliveryFee,
+                combinedSubtotal.add(combinedDeliveryFee),
+                finalizedOrders.stream().map(order -> toResponse(order, paymentService.getPaymentDetails(order))).toList(),
+                payment
+        );
+    }
+
     @Transactional(readOnly = true)
     public OrderResponse getOrder(Long id) {
         FoodOrder order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         return toResponse(order, paymentService.getPaymentDetails(order));
+    }
+
+    @Transactional(readOnly = true)
+    public OrderBatchResponse getOrderBatch(Long id) {
+        FoodOrder order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        List<FoodOrder> orders = (order.getGroupReference() == null || order.getGroupReference().isBlank())
+                ? List.of(order)
+                : orderRepository.findByGroupReferenceOrderByCreatedAtAsc(order.getGroupReference());
+
+        BigDecimal subtotal = orders.stream()
+                .map(FoodOrder::getSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal deliveryFee = orders.stream()
+                .map(FoodOrder::getDeliveryFee)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new OrderBatchResponse(
+                order.getGroupReference() == null || order.getGroupReference().isBlank() ? "ORDER-" + order.getId() : order.getGroupReference(),
+                subtotal,
+                deliveryFee,
+                subtotal.add(deliveryFee),
+                orders.stream().map(current -> toResponse(current, paymentService.getPaymentDetails(current))).toList(),
+                paymentService.getPaymentDetails(order)
+        );
     }
 
     @Transactional(readOnly = true)
@@ -166,6 +280,7 @@ public class OrderService {
 
         return new OrderResponse(
                 order.getId(),
+                order.getGroupReference(),
                 order.getRestaurant().getName(),
                 order.getCustomer().getFullName(),
                 order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getFullName(),
@@ -177,6 +292,7 @@ public class OrderService {
                 order.getDistanceKm(),
                 order.getSubtotal(),
                 order.getDeliveryFee(),
+                order.getSubtotal(),
                 order.getTotal(),
                 order.getCreatedAt(),
                 items,

@@ -1,6 +1,8 @@
 package com.foodhub.platform.controller;
 
 import com.foodhub.platform.dto.OrderResponse;
+import com.foodhub.platform.dto.OrderBatchResponse;
+import com.foodhub.platform.dto.PlaceGroupOrderRequest;
 import com.foodhub.platform.dto.PlaceOrderRequest;
 import com.foodhub.platform.service.OrderService;
 import jakarta.validation.Valid;
@@ -29,9 +31,19 @@ public class OrderController {
         return orderService.placeOrder(request);
     }
 
+    @PostMapping("/batch")
+    public OrderBatchResponse placeGroupOrder(@Valid @RequestBody PlaceGroupOrderRequest request) {
+        return orderService.placeGroupOrder(request);
+    }
+
     @GetMapping("/{id}")
     public OrderResponse getOrder(@PathVariable Long id) {
         return orderService.getOrder(id);
+    }
+
+    @GetMapping("/{id}/batch")
+    public OrderBatchResponse getOrderBatch(@PathVariable Long id) {
+        return orderService.getOrderBatch(id);
     }
 
     @GetMapping("/history")

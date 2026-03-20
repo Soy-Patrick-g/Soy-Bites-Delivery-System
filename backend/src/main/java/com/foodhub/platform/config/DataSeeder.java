@@ -32,24 +32,29 @@ public class DataSeeder {
                     AppUser rider = createUser("Kofi Rider", "rider@foodhub.dev", UserRole.DELIVERY, 5.5725, -0.1760, passwordEncoder);
                     appUserRepository.save(rider);
                 }
+                seedSecondOwner(appUserRepository, restaurantRepository, menuItemRepository, passwordEncoder);
                 return;
             }
 
             AppUser admin = createUser("Platform Admin", "admin@foodhub.dev", UserRole.ADMIN, 6.6732, -1.5654, passwordEncoder);
             AppUser vendor = createUser("Vendor Owner", "vendor@foodhub.dev", UserRole.RESTAURANT, 5.6037, -0.1870, passwordEncoder);
+            AppUser secondVendor = createUser("Lagoon Chef", "chef@foodhub.dev", UserRole.RESTAURANT, 5.5920, -0.1570, passwordEncoder);
             AppUser customer = createUser("Ama Customer", "user@foodhub.dev", UserRole.USER, 5.5600, -0.2050, passwordEncoder);
             AppUser rider = createUser("Kofi Rider", "rider@foodhub.dev", UserRole.DELIVERY, 5.5725, -0.1760, passwordEncoder);
             appUserRepository.save(admin);
             appUserRepository.save(vendor);
+            appUserRepository.save(secondVendor);
             appUserRepository.save(customer);
             appUserRepository.save(rider);
 
             Restaurant grill = createRestaurant("Savannah Grill", "Charcoal grilled rice bowls, shawarma, and suya-inspired sides.", "African Fusion", "Oxford Street 18", "Accra", 5.5650, -0.1900, vendor, new BigDecimal("4.60"));
             Restaurant sushi = createRestaurant("Harbor Sushi Lab", "Fresh sushi platters and poke bowls for lunch and dinner rushes.", "Japanese", "Marine Drive 5", "Accra", 5.5500, -0.2100, vendor, new BigDecimal("4.80"));
             Restaurant pasta = createRestaurant("Roma Pantry", "Comfort pasta, salads, and tiramisu for family-style dining.", "Italian", "Airport Residential 9", "Accra", 5.6150, -0.1750, vendor, new BigDecimal("4.40"));
+            Restaurant lagoon = createRestaurant("Lagoon Clay Oven", "Wood-fired flatbreads, grilled seafood, and bright mezze for coastal evenings.", "Mediterranean", "Labadi Beach Road 11", "Accra", 5.5710, -0.1480, secondVendor, new BigDecimal("4.70"));
             restaurantRepository.save(grill);
             restaurantRepository.save(sushi);
             restaurantRepository.save(pasta);
+            restaurantRepository.save(lagoon);
 
             menuItemRepository.save(createMenuItem(grill, "Jollof Fire Bowl", "Smoky jollof rice, grilled chicken, plantain, and pepper sauce.", "45.00", false, true));
             menuItemRepository.save(createMenuItem(grill, "Suya Fries", "Crispy fries dusted with suya spice and served with aioli.", "20.00", true, true));
@@ -57,11 +62,46 @@ public class DataSeeder {
             menuItemRepository.save(createMenuItem(sushi, "Veggie Maki Set", "Eight-piece cucumber and avocado rolls with miso dip.", "40.00", true, false));
             menuItemRepository.save(createMenuItem(pasta, "Truffle Alfredo", "Fettuccine in creamy truffle sauce with parmesan shards.", "58.00", true, false));
             menuItemRepository.save(createMenuItem(pasta, "Chicken Arrabbiata", "Spicy tomato pasta with grilled chicken and basil.", "52.00", false, true));
+            menuItemRepository.save(createMenuItem(lagoon, "Harissa Prawn Flatbread", "Wood-fired flatbread layered with prawns, peppers, and harissa yogurt.", "62.00", false, true));
+            menuItemRepository.save(createMenuItem(lagoon, "Citrus Halloumi Bowl", "Halloumi, herb couscous, cucumber ribbons, and lemon dressing.", "48.00", true, false));
 
             reviewRepository.save(createReview(customer, grill, 5, "Fast delivery, bold flavors, and the plantain was perfect."));
             reviewRepository.save(createReview(customer, sushi, 4, "Very fresh and neatly packed. Would order again."));
             reviewRepository.save(createReview(customer, pasta, 4, "Comforting portions and creamy sauce, slightly longer prep time."));
+            reviewRepository.save(createReview(customer, lagoon, 5, "The flatbread arrived hot and the mezze flavors were excellent."));
         };
+    }
+
+    private void seedSecondOwner(AppUserRepository appUserRepository,
+                                 RestaurantRepository restaurantRepository,
+                                 MenuItemRepository menuItemRepository,
+                                 PasswordEncoder passwordEncoder) {
+        AppUser secondVendor = appUserRepository.findByEmailIgnoreCase("chef@foodhub.dev")
+                .orElseGet(() -> appUserRepository.save(
+                        createUser("Lagoon Chef", "chef@foodhub.dev", UserRole.RESTAURANT, 5.5920, -0.1570, passwordEncoder)
+                ));
+
+        Restaurant lagoon = restaurantRepository.findByActiveTrue().stream()
+                .filter(restaurant -> "Lagoon Clay Oven".equalsIgnoreCase(restaurant.getName()))
+                .findFirst()
+                .orElseGet(() -> restaurantRepository.save(
+                        createRestaurant(
+                                "Lagoon Clay Oven",
+                                "Wood-fired flatbreads, grilled seafood, and bright mezze for coastal evenings.",
+                                "Mediterranean",
+                                "Labadi Beach Road 11",
+                                "Accra",
+                                5.5710,
+                                -0.1480,
+                                secondVendor,
+                                new BigDecimal("4.70")
+                        )
+                ));
+
+        if (menuItemRepository.findByRestaurantIdAndAvailableTrue(lagoon.getId()).isEmpty()) {
+            menuItemRepository.save(createMenuItem(lagoon, "Harissa Prawn Flatbread", "Wood-fired flatbread layered with prawns, peppers, and harissa yogurt.", "62.00", false, true));
+            menuItemRepository.save(createMenuItem(lagoon, "Citrus Halloumi Bowl", "Halloumi, herb couscous, cucumber ribbons, and lemon dressing.", "48.00", true, false));
+        }
     }
 
     private AppUser createUser(String fullName,

@@ -5,15 +5,18 @@ import com.foodhub.platform.dto.OrderItemResponse;
 import com.foodhub.platform.dto.OrderResponse;
 import com.foodhub.platform.dto.OwnerDashboardResponse;
 import com.foodhub.platform.dto.PaymentInitializationResponse;
+import com.foodhub.platform.dto.RestaurantPreviewItemResponse;
 import com.foodhub.platform.dto.RestaurantOwnerRegisterRequest;
 import com.foodhub.platform.dto.RestaurantSummaryResponse;
 import com.foodhub.platform.model.AppUser;
 import com.foodhub.platform.model.FoodOrder;
 import com.foodhub.platform.model.OrderItem;
 import com.foodhub.platform.model.OrderStatus;
+import com.foodhub.platform.model.PaymentStatus;
 import com.foodhub.platform.model.Restaurant;
 import com.foodhub.platform.model.UserRole;
 import com.foodhub.platform.repository.AppUserRepository;
+import com.foodhub.platform.repository.MenuItemRepository;
 import com.foodhub.platform.repository.OrderRepository;
 import com.foodhub.platform.repository.RestaurantRepository;
 import java.util.List;
@@ -27,6 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class OwnerPortalService {
 
     private final AppUserRepository appUserRepository;
+    private final MenuItemRepository menuItemRepository;
     private final RestaurantRepository restaurantRepository;
     private final OrderRepository orderRepository;
     private final PasswordEncoder passwordEncoder;
@@ -36,6 +40,7 @@ public class OwnerPortalService {
     private final GeoService geoService;
 
     public OwnerPortalService(AppUserRepository appUserRepository,
+                              MenuItemRepository menuItemRepository,
                               RestaurantRepository restaurantRepository,
                               OrderRepository orderRepository,
                               PasswordEncoder passwordEncoder,
@@ -44,6 +49,7 @@ public class OwnerPortalService {
                               PaymentService paymentService,
                               GeoService geoService) {
         this.appUserRepository = appUserRepository;
+        this.menuItemRepository = menuItemRepository;
         this.restaurantRepository = restaurantRepository;
         this.orderRepository = orderRepository;
         this.passwordEncoder = passwordEncoder;
@@ -100,7 +106,12 @@ public class OwnerPortalService {
                 .map(this::toOrderResponse)
                 .toList();
 
-        return new OwnerDashboardResponse(owner.getFullName(), owner.getEmail(), restaurants, orders);
+        var allocatedRevenue = orderRepository.findByRestaurantOwnerIdOrderByCreatedAtDesc(owner.getId()).stream()
+                .filter(order -> order.getPaymentStatus() == PaymentStatus.PAID)
+                .map(FoodOrder::getSubtotal)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        return new OwnerDashboardResponse(owner.getFullName(), owner.getEmail(), allocatedRevenue, restaurants, orders);
     }
 
     @Transactional
@@ -145,7 +156,16 @@ public class OwnerPortalService {
                 restaurant.getAddress(),
                 restaurant.getAverageRating(),
                 distanceKm,
-                distanceKm == null ? null : geoService.calculateDeliveryFee(distanceKm)
+                distanceKm == null ? null : geoService.calculateDeliveryFee(distanceKm),
+                menuItemRepository.findByRestaurantIdAndAvailableTrue(restaurant.getId()).stream()
+                        .limit(3)
+                        .map(item -> new RestaurantPreviewItemResponse(
+                                item.getId(),
+                                item.getName(),
+                                item.getPrice(),
+                                item.getImageUrl()
+                        ))
+                        .toList()
         );
     }
 
@@ -157,6 +177,7 @@ public class OwnerPortalService {
         PaymentInitializationResponse payment = paymentService.getPaymentDetails(order);
         return new OrderResponse(
                 order.getId(),
+                order.getGroupReference(),
                 order.getRestaurant().getName(),
                 order.getCustomer().getFullName(),
                 order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getFullName(),
@@ -168,6 +189,7 @@ public class OwnerPortalService {
                 order.getDistanceKm(),
                 order.getSubtotal(),
                 order.getDeliveryFee(),
+                order.getSubtotal(),
                 order.getTotal(),
                 order.getCreatedAt(),
                 items,

@@ -96,7 +96,7 @@ export function UserDashboardClient() {
             <p className="text-sm uppercase tracking-[0.18em] text-olive">Order history</p>
             <h2 className="mt-2 text-3xl font-semibold text-ink">Everything you’ve ordered</h2>
           </div>
-          <Link href="/checkout?restaurant=1" className="text-sm font-semibold text-olive">
+          <Link href="/checkout" className="text-sm font-semibold text-olive">
             Start new order
           </Link>
         </div>

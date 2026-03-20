@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { formatCurrency, verifyPayment } from "@/lib/api";
+import { verifyPayment } from "@/lib/api";
 import { Order } from "@/lib/types";
 
 export default function CheckoutCallbackPage() {
@@ -54,7 +54,7 @@ export default function CheckoutCallbackPage() {
             <p className="rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
-                href="/checkout?restaurant=1"
+                href="/checkout"
                 className="rounded-full bg-ember px-5 py-3 text-sm font-semibold text-white"
               >
                 Return to checkout
@@ -68,12 +68,12 @@ export default function CheckoutCallbackPage() {
                 <p className="text-sm uppercase tracking-[0.18em] text-olive">Payment status</p>
                 <h2 className="mt-2 text-3xl font-semibold text-ink">{order.paymentStatus}</h2>
                 <p className="mt-4 text-sm leading-7 text-ink/68">
-                  Order #{order.id} for {order.restaurantName} is now linked to payment reference {order.paymentReference}.
+                  Your checkout is now linked to payment reference {order.paymentReference}. The first restaurant order in that checkout is order #{order.id} for {order.restaurantName}.
                 </p>
               </div>
               <div className="rounded-3xl bg-cream p-5">
-                <p className="text-sm text-ink/60">Amount confirmed</p>
-                <p className="mt-3 text-3xl font-semibold text-ink">{formatCurrency(order.total)}</p>
+                <p className="text-sm text-ink/60">Checkout synced</p>
+                <p className="mt-3 text-3xl font-semibold text-ink">{order.status}</p>
               </div>
             </div>
 

@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { useCart } from "@/components/CartProvider";
 
 export function Header() {
   const { isReady, logout, session } = useAuth();
+  const { itemCount, isReady: isCartReady } = useCart();
   const router = useRouter();
   const isUser = session?.role === "USER";
   const isDelivery = session?.role === "DELIVERY";
@@ -20,11 +22,10 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-5 text-sm text-cream/80">
           <Link href="/">Discover</Link>
-          {isReady && !session ? <Link href="/checkout">Checkout</Link> : null}
+          <Link href="/checkout">Cart{isCartReady && itemCount > 0 ? ` (${itemCount})` : ""}</Link>
           {isReady && isUser ? (
             <>
               <Link href="/dashboard">Dashboard</Link>
-              <Link href="/checkout">Checkout</Link>
             </>
           ) : null}
           {isReady && isDelivery ? <Link href="/delivery/dashboard">Dashboard</Link> : null}

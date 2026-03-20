@@ -105,6 +105,11 @@ export function OwnerDashboardClient() {
           <p className="text-sm uppercase tracking-[0.18em] text-citrus">Owner profile</p>
           <h2 className="mt-3 text-3xl font-semibold">{dashboard?.ownerName}</h2>
           <p className="mt-2 text-sm text-cream/65">{dashboard?.ownerEmail}</p>
+          <div className="mt-6 rounded-3xl bg-white/8 p-5">
+            <p className="text-xs uppercase tracking-[0.16em] text-citrus">Allocated revenue</p>
+            <p className="mt-3 text-3xl font-semibold">{formatCurrency(dashboard?.allocatedRevenue ?? 0)}</p>
+            <p className="mt-2 text-sm text-cream/68">Paid food revenue currently allocated to your restaurants.</p>
+          </div>
 
           <div className="mt-8 grid gap-4">
             {dashboard?.restaurants.map((restaurant) => (
@@ -203,6 +208,7 @@ function OrderCard(props: { order: Order; busy: boolean; onAdvance: () => void }
           <p className="text-sm font-semibold text-ink">{props.order.status}</p>
           <p className="mt-2 text-sm text-ink/68">{props.order.paymentStatus}</p>
           <p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(props.order.total)}</p>
+          <p className="mt-2 text-sm text-olive">Your allocation {formatCurrency(props.order.ownerAllocation)}</p>
         </div>
       </div>
 

@@ -22,5 +22,8 @@ public interface OrderRepository extends JpaRepository<FoodOrder, Long> {
     List<FoodOrder> findByStatusAndDeliveryPersonIsNullOrderByCreatedAtAsc(OrderStatus status);
 
     @EntityGraph(attributePaths = {"items", "items.menuItem", "restaurant", "customer", "deliveryPerson"})
+    List<FoodOrder> findByGroupReferenceOrderByCreatedAtAsc(String groupReference);
+
+    @EntityGraph(attributePaths = {"items", "items.menuItem", "restaurant", "customer", "deliveryPerson"})
     Optional<FoodOrder> findById(Long id);
 }

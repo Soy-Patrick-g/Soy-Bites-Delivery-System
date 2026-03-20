@@ -8,6 +8,7 @@ import java.util.List;
 
 public record OrderResponse(
         Long id,
+        String groupReference,
         String restaurantName,
         String customerName,
         String deliveryPersonName,
@@ -19,6 +20,7 @@ public record OrderResponse(
         Double distanceKm,
         BigDecimal subtotal,
         BigDecimal deliveryFee,
+        BigDecimal ownerAllocation,
         BigDecimal total,
         Instant createdAt,
         List<OrderItemResponse> items,

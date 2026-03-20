@@ -87,6 +87,18 @@ export function AdminDashboardClient() {
         <DashboardStat label="Revenue" value={formatCurrency(dashboard.totalRevenue)} hint="Simulated GMV from initialized or paid orders" />
       </section>
 
+      <section className="mt-5 grid gap-5 md:grid-cols-2">
+        <DashboardStat
+          label="Owner allocations"
+          value={formatCurrency(dashboard.totalOwnerAllocations)}
+          hint="Food revenue already allocated to restaurant owners"
+        />
+        <div className="rounded-[32px] border border-white/10 bg-white/6 p-6 text-sm leading-7 text-cream/72 shadow-soft">
+          Combined checkout payments are split by order subtotal, so each restaurant owner sees only the food revenue
+          allocated to their own orders.
+        </div>
+      </section>
+
       <section className="mt-10 rounded-[36px] border border-white/10 bg-white/6 p-8 shadow-soft">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>

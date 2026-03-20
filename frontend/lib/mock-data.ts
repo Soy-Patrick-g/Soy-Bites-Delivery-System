@@ -144,6 +144,7 @@ export const mockOrder: Order = {
   distanceKm: 1.2,
   subtotal: 65,
   deliveryFee: 716,
+  ownerAllocation: 65,
   total: 781,
   createdAt: "2026-03-18T08:30:00Z",
   items: [
@@ -163,6 +164,6 @@ export const mockDashboard: AdminDashboard = {
   totalOrders: 126,
   totalReviews: 39,
   totalRevenue: 24560,
+  totalOwnerAllocations: 17840,
   topRestaurants: mockRestaurantSummaries.slice().sort((a, b) => b.averageRating - a.averageRating)
 };
-

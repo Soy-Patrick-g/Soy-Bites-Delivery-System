@@ -50,6 +50,8 @@ public class FoodOrder {
 
     private String paymentReference;
 
+    private String groupReference;
+
     @Column(nullable = false)
     private String deliveryAddress;
 
@@ -151,6 +153,14 @@ public class FoodOrder {
 
     public void setPaymentReference(String paymentReference) {
         this.paymentReference = paymentReference;
+    }
+
+    public String getGroupReference() {
+        return groupReference;
+    }
+
+    public void setGroupReference(String groupReference) {
+        this.groupReference = groupReference;
     }
 
     public String getDeliveryAddress() {

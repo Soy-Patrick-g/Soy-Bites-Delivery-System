@@ -1,23 +1,20 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { formatCurrency, getRestaurant, placeOrder } from "@/lib/api";
-import { RestaurantDetail } from "@/lib/types";
-
-type QuantityMap = Record<number, number>;
+import { useCart } from "@/components/CartProvider";
+import { formatCurrency, getRestaurants, placeGroupOrder } from "@/lib/api";
+import { RestaurantSummary } from "@/lib/types";
 
 export function CheckoutClient() {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const { isReady, session } = useAuth();
-  const restaurantId = searchParams.get("restaurant") ?? "1";
-  const loginRedirect = `/checkout?restaurant=${restaurantId}`;
-  const [restaurant, setRestaurant] = useState<RestaurantDetail | null>(null);
-  const [quantities, setQuantities] = useState<QuantityMap>({});
+  const { items, itemCount, setQuantity, subtotal, clearCart, isReady: isCartReady } = useCart();
+  const [restaurants, setRestaurants] = useState<RestaurantSummary[]>([]);
   const [deliveryAddress, setDeliveryAddress] = useState("East Legon, Lagos Avenue 14");
   const [deliveryLatitude, setDeliveryLatitude] = useState("5.56");
   const [deliveryLongitude, setDeliveryLongitude] = useState("-0.205");
@@ -26,18 +23,11 @@ export function CheckoutClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    async function loadRestaurant() {
+    async function loadRestaurants() {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await getRestaurant(restaurantId);
-        setRestaurant(data);
-        setQuantities(
-          data.menu.reduce<QuantityMap>((accumulator, item, index) => {
-            accumulator[item.id] = index === 0 ? 1 : 0;
-            return accumulator;
-          }, {})
-        );
+        setRestaurants(await getRestaurants());
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "Unable to load checkout data");
       } finally {
@@ -45,70 +35,83 @@ export function CheckoutClient() {
       }
     }
 
-    void loadRestaurant();
-  }, [restaurantId]);
+    void loadRestaurants();
+  }, []);
 
-  const selectedItems = useMemo(
-    () =>
-      restaurant?.menu
-        .filter((item) => (quantities[item.id] ?? 0) > 0)
-        .map((item) => ({
-          ...item,
-          quantity: quantities[item.id] ?? 0,
-          lineTotal: item.price * (quantities[item.id] ?? 0)
-        })) ?? [],
-    [quantities, restaurant]
+  const restaurantById = useMemo(
+    () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])),
+    [restaurants]
   );
 
-  const subtotal = selectedItems.reduce((sum, item) => sum + item.lineTotal, 0);
-  const deliveryFee = restaurant?.estimatedDeliveryFee ?? 0;
+  const groupedItems = useMemo(() => {
+    const groups = new Map<number, { restaurantName: string; deliveryFee: number; items: typeof items }>();
+
+    for (const item of items) {
+      const restaurant = restaurantById.get(item.restaurantId);
+      const current = groups.get(item.restaurantId);
+      const deliveryFee = restaurant?.estimatedDeliveryFee ?? 0;
+
+      if (current) {
+        current.items.push(item);
+      } else {
+        groups.set(item.restaurantId, {
+          restaurantName: item.restaurantName,
+          deliveryFee,
+          items: [item]
+        });
+      }
+    }
+
+    return Array.from(groups.values());
+  }, [items, restaurantById]);
+
+  const deliveryFee = groupedItems.reduce((sum, group) => sum + group.deliveryFee, 0);
   const total = subtotal + deliveryFee;
 
   async function handleSubmit() {
-    if (!restaurant || !session) {
+    if (!session) {
       return;
     }
 
-    const items = selectedItems.map((item) => ({
-      menuItemId: item.id,
-      quantity: item.quantity
-    }));
-
     if (items.length === 0) {
-      setError("Select at least one menu item before placing the order.");
+      setError("Add at least one food item to your cart before checkout.");
       return;
     }
 
     try {
       setIsSubmitting(true);
       setError(null);
-      const order = await placeOrder(session.token, {
-        restaurantId: restaurant.id,
+      const batch = await placeGroupOrder(session.token, {
         deliveryAddress,
         deliveryLatitude: Number(deliveryLatitude),
         deliveryLongitude: Number(deliveryLongitude),
         customerEmail: session.email,
-        items
+        items: items.map((item) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity
+        }))
       });
 
-      if (order.payment?.authorizationUrl) {
-        window.location.assign(order.payment.authorizationUrl);
+      clearCart();
+
+      if (batch.payment?.authorizationUrl) {
+        window.location.assign(batch.payment.authorizationUrl);
         return;
       }
 
-      router.push(`/orders/${order.id}`);
+      router.push(`/orders/${batch.orders[0].id}`);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Unable to place order");
+      setError(nextError instanceof Error ? nextError.message : "Unable to place combined order");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (isLoading || !isReady) {
+  if (!isReady || !isCartReady || isLoading) {
     return <Shell><p className="text-sm text-ink/70">Loading checkout...</p></Shell>;
   }
 
-  if (error && !restaurant) {
+  if (error && restaurants.length === 0) {
     return <Shell><ErrorMessage message={error} /></Shell>;
   }
 
@@ -118,10 +121,10 @@ export function CheckoutClient() {
         <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
           <h2 className="text-2xl font-semibold text-ink">Login required</h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-ink/70">
-            Sign in as a customer before placing a real order. Your JWT will be used for the protected `/api/orders` request.
+            Sign in as a customer before placing a real order. Your saved cart will stay here and be used for the combined checkout request.
           </p>
           <Link
-            href={`/login?redirect=${encodeURIComponent(loginRedirect)}`}
+            href={`/login?redirect=${encodeURIComponent("/checkout")}`}
             className="mt-6 inline-flex rounded-full bg-ember px-6 py-3 text-sm font-semibold text-white"
           >
             Login to continue
@@ -131,87 +134,130 @@ export function CheckoutClient() {
     );
   }
 
-  if (!restaurant) {
-    return <Shell><ErrorMessage message="Restaurant not found." /></Shell>;
+  if (items.length === 0) {
+    return (
+      <Shell>
+        <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
+          <h2 className="text-2xl font-semibold text-ink">Your cart is empty</h2>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-ink/70">
+            Go back to discover, browse foods from different restaurants, and add them to your cart. Then return here to complete a single combined checkout.
+          </p>
+          <Link
+            href="/#marketplace"
+            className="mt-6 inline-flex rounded-full bg-ember px-6 py-3 text-sm font-semibold text-white"
+          >
+            Browse restaurants
+          </Link>
+        </div>
+      </Shell>
+    );
   }
 
   return (
     <Shell>
       <section className="grid gap-8 lg:grid-cols-[1fr_420px]">
-        <div className="rounded-[32px] border border-white/50 bg-white/85 p-8 shadow-soft">
-          <h2 className="text-2xl font-semibold text-ink">Delivery details</h2>
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
-            <Field label="Customer name" value={session.fullName} readOnly />
-            <Field label="Email address" value={session.email} readOnly />
-            <Field label="Delivery address" value={deliveryAddress} onChange={setDeliveryAddress} />
-            <Field label="Latitude" value={deliveryLatitude} onChange={setDeliveryLatitude} />
-            <Field label="Longitude" value={deliveryLongitude} onChange={setDeliveryLongitude} />
-          </div>
+        <div className="space-y-8">
+          <section className="rounded-[32px] border border-white/50 bg-white/85 p-8 shadow-soft">
+            <h2 className="text-2xl font-semibold text-ink">Delivery details</h2>
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <Field label="Customer name" value={session.fullName} readOnly />
+              <Field label="Email address" value={session.email} readOnly />
+              <Field label="Delivery address" value={deliveryAddress} onChange={setDeliveryAddress} />
+              <Field label="Latitude" value={deliveryLatitude} onChange={setDeliveryLatitude} />
+              <Field label="Longitude" value={deliveryLongitude} onChange={setDeliveryLongitude} />
+            </div>
+          </section>
 
-          <div className="mt-8 rounded-[28px] bg-ink p-6 text-cream">
-            <p className="text-sm uppercase tracking-[0.18em] text-cream/60">Choose menu items</p>
-            <div className="mt-5 space-y-4">
-              {restaurant.menu.map((item) => (
-                <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white/8 px-5 py-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">{item.name}</h3>
-                    <p className="mt-1 text-sm text-cream/70">{formatCurrency(item.price)}</p>
+          <section className="rounded-[32px] bg-ink p-6 text-cream shadow-soft">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-sm uppercase tracking-[0.18em] text-cream/60">Your cart</p>
+                <h2 className="mt-2 text-3xl font-semibold">{itemCount} item(s) from multiple restaurants</h2>
+              </div>
+              <Link href="/#marketplace" className="text-sm font-semibold text-citrus">
+                Add more foods
+              </Link>
+            </div>
+
+            <div className="mt-6 space-y-6">
+              {groupedItems.map((group) => (
+                <article key={group.restaurantName} className="rounded-[28px] bg-white/8 p-5">
+                  <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.16em] text-citrus">Restaurant</p>
+                      <h3 className="mt-2 text-2xl font-semibold">{group.restaurantName}</h3>
+                    </div>
+                    <p className="text-sm text-cream/70">{formatCurrency(group.deliveryFee)} delivery</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setQuantities((current) => ({
-                          ...current,
-                          [item.id]: Math.max(0, (current[item.id] ?? 0) - 1)
-                        }))
-                      }
-                      className="h-10 w-10 rounded-full border border-white/15 text-lg"
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center text-sm font-semibold">{quantities[item.id] ?? 0}</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setQuantities((current) => ({
-                          ...current,
-                          [item.id]: (current[item.id] ?? 0) + 1
-                        }))
-                      }
-                      className="h-10 w-10 rounded-full border border-white/15 text-lg"
-                    >
-                      +
-                    </button>
+
+                  <div className="mt-5 space-y-4">
+                    {group.items.map((item) => (
+                      <div key={item.menuItemId} className="grid gap-4 rounded-3xl bg-white/8 p-4 md:grid-cols-[96px_1fr_auto] md:items-center">
+                        <div className="relative h-24 overflow-hidden rounded-2xl bg-cream">
+                          {item.imageUrl ? (
+                            <Image src={item.imageUrl} alt={item.itemName} fill className="object-cover" />
+                          ) : (
+                            <div className="h-full w-full bg-cream" />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-semibold">{item.itemName}</h4>
+                          <p className="mt-2 text-sm font-semibold">{formatCurrency(item.price)}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setQuantity(item.menuItemId, item.quantity - 1)}
+                            className="h-10 w-10 rounded-full border border-white/15 text-lg"
+                          >
+                            -
+                          </button>
+                          <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => setQuantity(item.menuItemId, item.quantity + 1)}
+                            className="h-10 w-10 rounded-full border border-white/15 text-lg"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </article>
               ))}
             </div>
-          </div>
+          </section>
         </div>
 
         <aside className="rounded-[32px] bg-ink p-8 text-cream shadow-soft">
-          <p className="text-sm uppercase tracking-[0.22em] text-cream/60">Order summary</p>
-          <h2 className="mt-4 text-3xl font-semibold">{restaurant.name}</h2>
-          <div className="mt-6 space-y-4">
-            {selectedItems.length > 0 ? (
-              selectedItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between text-sm">
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-cream/60">{item.quantity} item(s)</p>
-                  </div>
-                  <span>{formatCurrency(item.lineTotal)}</span>
+          <p className="text-sm uppercase tracking-[0.22em] text-cream/60">Combined order summary</p>
+          <h2 className="mt-4 text-3xl font-semibold">Proceed to one checkout</h2>
+          <div className="mt-6 space-y-6">
+            {groupedItems.map((group) => (
+              <div key={group.restaurantName} className="rounded-3xl bg-white/8 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="font-semibold">{group.restaurantName}</p>
+                  <span className="text-sm text-cream/65">{formatCurrency(group.deliveryFee)} delivery</span>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-cream/60">No items selected yet.</p>
-            )}
+                <div className="mt-4 space-y-3 text-sm">
+                  {group.items.map((item) => (
+                    <div key={item.menuItemId} className="flex items-center justify-between gap-4">
+                      <div>
+                        <p>{item.itemName}</p>
+                        <p className="text-cream/60">{item.quantity} item(s)</p>
+                      </div>
+                      <span>{formatCurrency(item.quantity * item.price)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="mt-8 space-y-3 border-t border-white/10 pt-6 text-sm">
             <div className="flex justify-between">
-              <span className="text-cream/70">Subtotal</span>
+              <span className="text-cream/70">Food subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex justify-between">
@@ -229,10 +275,10 @@ export function CheckoutClient() {
           <button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={isSubmitting || selectedItems.length === 0}
+            disabled={isSubmitting || items.length === 0}
             className="mt-8 inline-flex w-full justify-center rounded-full bg-citrus px-6 py-3 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmitting ? "Placing order..." : "Place real order"}
+            {isSubmitting ? "Placing combined order..." : "Place combined order"}
           </button>
         </aside>
       </section>
@@ -245,7 +291,7 @@ function Shell({ children }: { children: ReactNode }) {
     <main className="mx-auto max-w-7xl px-6 py-12">
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">Checkout</p>
-        <h1 className="mt-2 font-serif text-5xl text-ink">Secure checkout with Paystack payment flow</h1>
+        <h1 className="mt-2 font-serif text-5xl text-ink">Review the foods you added to your cart</h1>
       </div>
       {children}
     </main>

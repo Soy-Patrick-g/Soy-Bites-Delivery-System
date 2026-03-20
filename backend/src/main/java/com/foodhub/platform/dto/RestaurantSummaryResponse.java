@@ -1,6 +1,7 @@
 package com.foodhub.platform.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record RestaurantSummaryResponse(
         Long id,
@@ -11,7 +12,7 @@ public record RestaurantSummaryResponse(
         String address,
         BigDecimal averageRating,
         Double distanceKm,
-        BigDecimal estimatedDeliveryFee
+        BigDecimal estimatedDeliveryFee,
+        List<RestaurantPreviewItemResponse> featuredItems
 ) {
 }
-

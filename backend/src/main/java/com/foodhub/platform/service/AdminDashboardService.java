@@ -37,6 +37,10 @@ public class AdminDashboardService {
                 .filter(order -> order.getPaymentStatus() == PaymentStatus.INITIALIZED || order.getPaymentStatus() == PaymentStatus.PAID)
                 .map(order -> order.getTotal())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalOwnerAllocations = orderRepository.findAll().stream()
+                .filter(order -> order.getPaymentStatus() == PaymentStatus.PAID)
+                .map(order -> order.getSubtotal())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         List<RestaurantSummaryResponse> topRestaurants = restaurants.stream()
                 .map(restaurant -> restaurantService.getRestaurants(null, null, restaurant.getCity(), restaurant.getName()).stream()
@@ -53,6 +57,7 @@ public class AdminDashboardService {
                 orderRepository.count(),
                 reviewRepository.count(),
                 totalRevenue,
+                totalOwnerAllocations,
                 topRestaurants
         );
     }

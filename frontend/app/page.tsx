@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useCart } from "@/components/CartProvider";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { formatCurrency, getRestaurants } from "@/lib/api";
 import { RestaurantSummary } from "@/lib/types";
 
 export default function HomePage() {
+  const { itemCount, subtotal, items, isReady: isCartReady, clearCart } = useCart();
   const [restaurants, setRestaurants] = useState<RestaurantSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,10 +50,10 @@ export default function HomePage() {
 
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
-                href="/checkout?restaurant=1"
+                href="#marketplace"
                 className="rounded-full bg-ember px-6 py-3 text-sm font-semibold text-white transition hover:bg-ember/90"
               >
-                Start checkout
+                Browse foods
               </Link>
               <Link
                 href="/dashboard"
@@ -86,15 +88,59 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6">
+      <section id="marketplace" className="mx-auto max-w-7xl px-6">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">Nearby now</p>
-            <h2 className="mt-2 text-4xl font-serif text-ink">Restaurants matched to the customer location</h2>
+            <h2 className="mt-2 text-4xl font-serif text-ink">All restaurants, with foods you can add to cart</h2>
           </div>
           <p className="max-w-md text-sm leading-6 text-ink/65">
-            Results here are loaded from the live backend using seeded coordinates for distance-aware discovery.
+            Add dishes directly from this marketplace, then move to checkout with one cart containing items from multiple restaurants.
           </p>
+        </div>
+
+        <div className="mb-8 rounded-[30px] border border-ink/10 bg-white/90 p-6 shadow-soft">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-olive">Cart</p>
+              <h3 className="mt-2 text-3xl font-semibold text-ink">
+                {isCartReady ? `${itemCount} item(s) ready for checkout` : "Loading cart..."}
+              </h3>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/checkout"
+                className="rounded-full bg-citrus px-5 py-3 text-sm font-semibold text-ink transition hover:bg-citrus/90"
+              >
+                Proceed to checkout
+              </Link>
+              {isCartReady && itemCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  className="rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold text-ink transition hover:bg-cream"
+                >
+                  Clear cart
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-sm text-ink/68">
+            {isCartReady && items.length > 0 ? (
+              items.slice(0, 6).map((item) => (
+                <span key={item.menuItemId} className="rounded-full bg-cream px-4 py-2">
+                  {item.quantity}x {item.itemName} from {item.restaurantName}
+                </span>
+              ))
+            ) : (
+              <span className="rounded-full bg-cream px-4 py-2">Your cart is empty. Start by adding food below.</span>
+            )}
+            {isCartReady ? (
+              <span className="rounded-full bg-ink px-4 py-2 font-semibold text-cream">
+                Food subtotal {formatCurrency(subtotal)}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {isLoading ? (

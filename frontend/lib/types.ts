@@ -8,6 +8,23 @@ export type MenuItem = {
   spicy: boolean;
 };
 
+export type CartItem = {
+  menuItemId: number;
+  restaurantId: number;
+  restaurantName: string;
+  itemName: string;
+  price: number;
+  imageUrl?: string;
+  quantity: number;
+};
+
+export type RestaurantPreviewItem = {
+  id: number;
+  name: string;
+  price: number;
+  imageUrl?: string;
+};
+
 export type Review = {
   id: number;
   customerName: string;
@@ -26,6 +43,7 @@ export type RestaurantSummary = {
   averageRating: number;
   distanceKm?: number | null;
   estimatedDeliveryFee?: number | null;
+  featuredItems?: RestaurantPreviewItem[];
 };
 
 export type RestaurantDetail = RestaurantSummary & {
@@ -57,6 +75,7 @@ export type OrderItem = {
 
 export type Order = {
   id: number;
+  groupReference?: string | null;
   restaurantName: string;
   customerName: string;
   deliveryPersonName?: string | null;
@@ -68,9 +87,19 @@ export type Order = {
   distanceKm: number;
   subtotal: number;
   deliveryFee: number;
+  ownerAllocation: number;
   total: number;
   createdAt: string;
   items: OrderItem[];
+  payment?: PaymentInitialization | null;
+};
+
+export type OrderBatch = {
+  groupReference: string;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  orders: Order[];
   payment?: PaymentInitialization | null;
 };
 
@@ -79,12 +108,14 @@ export type AdminDashboard = {
   totalOrders: number;
   totalReviews: number;
   totalRevenue: number;
+  totalOwnerAllocations: number;
   topRestaurants: RestaurantSummary[];
 };
 
 export type OwnerDashboard = {
   ownerName: string;
   ownerEmail: string;
+  allocatedRevenue: number;
   restaurants: RestaurantSummary[];
   orders: Order[];
 };
@@ -112,6 +143,17 @@ export type LoginRequest = {
 
 export type PlaceOrderPayload = {
   restaurantId: number;
+  deliveryAddress: string;
+  deliveryLatitude: number;
+  deliveryLongitude: number;
+  customerEmail: string;
+  items: Array<{
+    menuItemId: number;
+    quantity: number;
+  }>;
+};
+
+export type PlaceGroupOrderPayload = {
   deliveryAddress: string;
   deliveryLatitude: number;
   deliveryLongitude: number;

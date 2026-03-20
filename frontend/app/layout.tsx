@@ -3,6 +3,7 @@ import { DM_Serif_Display, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { CartProvider } from "@/components/CartProvider";
 import { Header } from "@/components/Header";
 
 const display = DM_Serif_Display({
@@ -26,8 +27,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="en" className={`${display.variable} ${sans.variable}`}>
       <body className="font-sans text-ink antialiased">
         <AuthProvider>
-          <Header />
-          {children}
+          <CartProvider>
+            <Header />
+            {children}
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

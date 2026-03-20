@@ -1,6 +1,7 @@
 package com.foodhub.platform.service;
 
 import com.foodhub.platform.dto.MenuItemResponse;
+import com.foodhub.platform.dto.RestaurantPreviewItemResponse;
 import com.foodhub.platform.dto.RestaurantDetailResponse;
 import com.foodhub.platform.dto.RestaurantSummaryResponse;
 import com.foodhub.platform.dto.ReviewRequest;
@@ -150,7 +151,16 @@ public class RestaurantService {
                 restaurant.getAddress(),
                 restaurant.getAverageRating(),
                 distance == null ? null : BigDecimal.valueOf(distance).setScale(2, RoundingMode.HALF_UP).doubleValue(),
-                fee
+                fee,
+                menuItemRepository.findByRestaurantIdAndAvailableTrue(restaurant.getId()).stream()
+                        .limit(3)
+                        .map(item -> new RestaurantPreviewItemResponse(
+                                item.getId(),
+                                item.getName(),
+                                item.getPrice(),
+                                item.getImageUrl()
+                        ))
+                        .toList()
         );
     }
 
@@ -176,4 +186,3 @@ public class RestaurantService {
                 || restaurant.getDescription().toLowerCase(Locale.ROOT).contains(normalized);
     }
 }
-

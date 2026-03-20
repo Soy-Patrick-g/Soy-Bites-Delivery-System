@@ -5,8 +5,10 @@ import {
   DeliveryDashboard,
   DeliveryRegisterRequest,
   LoginRequest,
+  OrderBatch,
   OwnerDashboard,
   Order,
+  PlaceGroupOrderPayload,
   PlaceOrderPayload,
   RestaurantOwnerRegisterRequest,
   RestaurantDetail,
@@ -15,7 +17,7 @@ import {
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api",
-  timeout: 4000
+  timeout: 15000
 });
 
 function toMessage(error: unknown, label: string): Error {
@@ -62,6 +64,15 @@ export async function getOrder(id: string): Promise<Order> {
     return data;
   } catch (error) {
     throw toMessage(error, `Loading order ${id}`);
+  }
+}
+
+export async function getOrderBatch(id: string): Promise<OrderBatch> {
+  try {
+    const { data } = await api.get<OrderBatch>(`/orders/${id}/batch`);
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Loading combined receipt ${id}`);
   }
 }
 
@@ -117,11 +128,24 @@ export async function registerDeliveryPerson(request: DeliveryRegisterRequest): 
 export async function placeOrder(token: string, payload: PlaceOrderPayload): Promise<Order> {
   try {
     const { data } = await api.post<Order>("/orders", payload, {
-      headers: authHeaders(token)
+      headers: authHeaders(token),
+      timeout: 20000
     });
     return data;
   } catch (error) {
     throw toMessage(error, "Placing order");
+  }
+}
+
+export async function placeGroupOrder(token: string, payload: PlaceGroupOrderPayload): Promise<OrderBatch> {
+  try {
+    const { data } = await api.post<OrderBatch>("/orders/batch", payload, {
+      headers: authHeaders(token),
+      timeout: 25000
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Placing combined order");
   }
 }
 

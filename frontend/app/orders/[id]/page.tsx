@@ -20,6 +20,11 @@ export default async function OrderPage({ params }: OrderPageProps) {
             <p className="mt-3 text-cream/70">
               {order.restaurantName} to {order.deliveryAddress}
             </p>
+            {order.groupReference ? (
+              <p className="mt-2 text-sm text-citrus">
+                Part of combined checkout {order.groupReference}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="rounded-3xl bg-white/8 px-5 py-4">
@@ -30,7 +35,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
               href={`/orders/${order.id}/receipt`}
               className="inline-flex items-center rounded-full bg-citrus px-5 py-3 text-sm font-semibold text-ink"
             >
-              Printable receipt
+              Combined receipt
             </Link>
             {order.payment?.authorizationUrl && order.paymentStatus !== "PAID" ? (
               <Link

@@ -6,9 +6,11 @@ import com.foodhub.platform.model.PaymentStatus;
 import com.foodhub.platform.model.PaymentTransaction;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.foodhub.platform.repository.OrderRepository;
 import com.foodhub.platform.repository.PaymentTransactionRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -23,6 +25,7 @@ import org.springframework.http.HttpStatus;
 public class PaymentService {
 
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final OrderRepository orderRepository;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
@@ -39,20 +42,27 @@ public class PaymentService {
     private String callbackUrl;
 
     public PaymentService(PaymentTransactionRepository paymentTransactionRepository,
+                          OrderRepository orderRepository,
                           RestClient.Builder restClientBuilder,
                           ObjectMapper objectMapper) {
         this.paymentTransactionRepository = paymentTransactionRepository;
+        this.orderRepository = orderRepository;
         this.restClient = restClientBuilder.build();
         this.objectMapper = objectMapper;
     }
 
     @Transactional
     public PaymentInitializationResponse initializeTransaction(FoodOrder order) {
+        return initializeTransaction(order, order.getTotal(), order.getRestaurant().getName());
+    }
+
+    @Transactional
+    public PaymentInitializationResponse initializeTransaction(FoodOrder order, BigDecimal amount, String description) {
         String reference = "FH-" + order.getId() + "-" + Instant.now().toEpochMilli();
         boolean simulated = !paystackEnabled;
         PaymentInitializationResponse payment = simulated
                 ? new PaymentInitializationResponse("PAYSTACK", reference, callbackUrl + "?reference=" + reference + "&mode=demo", true)
-                : initializeWithPaystack(order, reference);
+                : initializeWithPaystack(order, reference, amount, description);
 
         PaymentTransaction transaction = new PaymentTransaction();
         transaction.setOrder(order);
@@ -60,7 +70,7 @@ public class PaymentService {
         transaction.setReference(payment.reference());
         transaction.setAuthorizationUrl(payment.authorizationUrl());
         transaction.setStatus(PaymentStatus.INITIALIZED);
-        transaction.setAmount(order.getTotal());
+        transaction.setAmount(amount);
         paymentTransactionRepository.save(transaction);
 
         order.setPaymentReference(payment.reference());
@@ -96,7 +106,7 @@ public class PaymentService {
 
         if (isSimulated(transaction)) {
             transaction.setStatus(PaymentStatus.PAID);
-            transaction.getOrder().setPaymentStatus(PaymentStatus.PAID);
+            updateGroupPaymentStatus(transaction.getOrder(), PaymentStatus.PAID);
             paymentTransactionRepository.save(transaction);
             return transaction.getOrder();
         }
@@ -118,7 +128,7 @@ public class PaymentService {
         }
 
         BigDecimal verifiedAmount = BigDecimal.valueOf(response.data().amount()).movePointLeft(2);
-        if (verifiedAmount.compareTo(transaction.getOrder().getTotal()) != 0) {
+        if (verifiedAmount.compareTo(transaction.getAmount()) != 0) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Verified amount does not match the order total");
         }
 
@@ -129,12 +139,12 @@ public class PaymentService {
         };
 
         transaction.setStatus(paymentStatus);
-        transaction.getOrder().setPaymentStatus(paymentStatus);
+        updateGroupPaymentStatus(transaction.getOrder(), paymentStatus);
         paymentTransactionRepository.save(transaction);
         return transaction.getOrder();
     }
 
-    private PaymentInitializationResponse initializeWithPaystack(FoodOrder order, String reference) {
+    private PaymentInitializationResponse initializeWithPaystack(FoodOrder order, String reference, BigDecimal amount, String description) {
         PaystackInitializeEnvelope response = restClient.post()
                 .uri(paystackBaseUrl + "/transaction/initialize")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + paystackSecretKey)
@@ -142,10 +152,10 @@ public class PaymentService {
                 .accept(MediaType.APPLICATION_JSON)
                 .body(Map.of(
                         "email", order.getCustomer().getEmail(),
-                        "amount", order.getTotal().movePointRight(2).longValueExact(),
+                        "amount", amount.movePointRight(2).longValueExact(),
                         "reference", reference,
                         "callback_url", callbackUrl,
-                        "metadata", metadataFor(order)
+                        "metadata", metadataFor(order, description)
                 ))
                 .retrieve()
                 .body(PaystackInitializeEnvelope.class);
@@ -179,15 +189,28 @@ public class PaymentService {
         return authorizationUrl != null && authorizationUrl.contains("mode=demo");
     }
 
-    private String metadataFor(FoodOrder order) {
+    private String metadataFor(FoodOrder order, String description) {
         try {
-            return objectMapper.writeValueAsString(Map.of(
-                    "orderId", order.getId(),
-                    "customerEmail", order.getCustomer().getEmail(),
-                    "restaurantName", order.getRestaurant().getName()
-            ));
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("orderId", order.getId());
+            metadata.put("customerEmail", order.getCustomer().getEmail());
+            metadata.put("restaurantName", order.getRestaurant().getName());
+            metadata.put("description", description);
+            if (order.getGroupReference() != null && !order.getGroupReference().isBlank()) {
+                metadata.put("groupReference", order.getGroupReference());
+            }
+            return objectMapper.writeValueAsString(metadata);
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to serialize Paystack metadata");
+        }
+    }
+
+    private void updateGroupPaymentStatus(FoodOrder order, PaymentStatus paymentStatus) {
+        if (order.getGroupReference() != null && !order.getGroupReference().isBlank()) {
+            orderRepository.findByGroupReferenceOrderByCreatedAtAsc(order.getGroupReference())
+                    .forEach(groupedOrder -> groupedOrder.setPaymentStatus(paymentStatus));
+        } else {
+            order.setPaymentStatus(paymentStatus);
         }
     }
 }

@@ -8,7 +8,7 @@ public record AdminDashboardResponse(
         long totalOrders,
         long totalReviews,
         BigDecimal totalRevenue,
+        BigDecimal totalOwnerAllocations,
         List<RestaurantSummaryResponse> topRestaurants
 ) {
 }
-

@@ -129,6 +129,7 @@ public class DeliveryPortalService {
         PaymentInitializationResponse payment = paymentService.getPaymentDetails(order);
         return new OrderResponse(
                 order.getId(),
+                order.getGroupReference(),
                 order.getRestaurant().getName(),
                 order.getCustomer().getFullName(),
                 order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getFullName(),
@@ -140,6 +141,7 @@ public class DeliveryPortalService {
                 order.getDistanceKm(),
                 order.getSubtotal(),
                 order.getDeliveryFee(),
+                order.getSubtotal(),
                 order.getTotal(),
                 order.getCreatedAt(),
                 items,
