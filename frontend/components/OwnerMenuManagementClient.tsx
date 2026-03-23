@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import {
   createOwnerBranch,
@@ -11,6 +11,7 @@ import {
   getOwnerDashboard,
   getOwnerRestaurantMenu,
   setOwnerMenuItemAvailability,
+  uploadOwnerImage,
   updateOwnerMenuItem
 } from "@/lib/api";
 import { MenuItem, OwnerDashboard } from "@/lib/types";
@@ -74,6 +75,7 @@ export function OwnerMenuManagementClient() {
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [menuForm, setMenuForm] = useState<MenuFormState>(emptyMenuForm);
   const [branchForm, setBranchForm] = useState<BranchFormState>(emptyBranchForm);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isMenuLoading) {
@@ -270,6 +272,29 @@ export function OwnerMenuManagementClient() {
     }
   }
 
+  async function handleImageFileChange(event: ChangeEvent<HTMLInputElement>) {
+    if (!session) {
+      return;
+    }
+
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      setError(null);
+      const uploaded = await uploadOwnerImage(session.token, file);
+      setMenuForm((current) => ({ ...current, imageUrl: uploaded.url }));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to upload menu image");
+    } finally {
+      setIsUploadingImage(false);
+      event.target.value = "";
+    }
+  }
+
   function startEditing(menuItem: MenuItem) {
     setEditingMenuItemId(menuItem.id);
     setMenuForm({
@@ -416,11 +441,41 @@ export function OwnerMenuManagementClient() {
                       onChange={(value) => setMenuForm({ ...menuForm, description: value })}
                     />
                     <Field label="Price (gh₵)" value={menuForm.price} onChange={(value) => setMenuForm({ ...menuForm, price: value })} />
-                    <Field
-                      label="Image URL"
-                      value={menuForm.imageUrl}
-                      onChange={(value) => setMenuForm({ ...menuForm, imageUrl: value })}
-                    />
+                    <div className="block">
+                      <span className="mb-2 block text-sm font-medium text-ink/70">Menu image</span>
+                      <div className="rounded-2xl border border-ink/10 bg-white p-4">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <label className="inline-flex cursor-pointer rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cream">
+                            {isUploadingImage ? "Uploading..." : "Upload from device"}
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,image/gif"
+                              className="hidden"
+                              onChange={handleImageFileChange}
+                              disabled={isUploadingImage}
+                            />
+                          </label>
+                          <span className="text-sm text-ink/60">
+                            JPG, PNG, WEBP, or GIF. We will store it in Cloudinary.
+                          </span>
+                        </div>
+                        <div className="mt-4">
+                          <Field
+                            label="Image URL"
+                            value={menuForm.imageUrl}
+                            onChange={(value) => setMenuForm({ ...menuForm, imageUrl: value })}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-ink/55">
+                          You can upload a file or paste an existing hosted image URL.
+                        </p>
+                        {menuForm.imageUrl ? (
+                          <div className="mt-4 overflow-hidden rounded-2xl border border-ink/10 bg-cream">
+                            <img src={menuForm.imageUrl} alt="Menu item preview" className="h-40 w-full object-cover" />
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
                     <div className="grid gap-3 sm:grid-cols-3">
                       <ToggleField
                         label="Available"
@@ -493,7 +548,7 @@ export function OwnerMenuManagementClient() {
                                 {item.spicy ? <span>Spicy</span> : null}
                               </div>
                               <p className="mt-3 text-xs text-ink/50">
-                                {item.imageUrl ? `Image source: ${item.imageUrl}` : "No image yet. Add a URL now; upload support can replace this later."}
+                                {item.imageUrl ? `Image source: ${item.imageUrl}` : "No image yet. Upload a file or paste a hosted URL."}
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-3">

@@ -203,6 +203,12 @@ export type AdminDashboard = {
   topRestaurants: RestaurantSummary[];
 };
 
+export type UploadedImage = {
+  url: string;
+  publicId: string;
+  originalFilename?: string | null;
+};
+
 export type OwnerDashboard = {
   ownerName: string;
   ownerEmail: string;

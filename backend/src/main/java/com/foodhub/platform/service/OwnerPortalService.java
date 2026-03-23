@@ -3,6 +3,7 @@ package com.foodhub.platform.service;
 import com.foodhub.platform.dto.AuthResponse;
 import com.foodhub.platform.dto.CreateBranchRequest;
 import com.foodhub.platform.dto.CreateMenuItemRequest;
+import com.foodhub.platform.dto.ImageUploadResponse;
 import com.foodhub.platform.dto.MenuItemResponse;
 import com.foodhub.platform.dto.OrderItemResponse;
 import com.foodhub.platform.dto.OrderResponse;
@@ -31,6 +32,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -47,6 +49,7 @@ public class OwnerPortalService {
     private final AuditLogService auditLogService;
     private final PaymentService paymentService;
     private final GeoService geoService;
+    private final CloudinaryImageService cloudinaryImageService;
 
     public OwnerPortalService(AppUserRepository appUserRepository,
                               MenuItemRepository menuItemRepository,
@@ -58,7 +61,8 @@ public class OwnerPortalService {
                               UserSessionService userSessionService,
                               AuditLogService auditLogService,
                               PaymentService paymentService,
-                              GeoService geoService) {
+                              GeoService geoService,
+                              CloudinaryImageService cloudinaryImageService) {
         this.appUserRepository = appUserRepository;
         this.menuItemRepository = menuItemRepository;
         this.restaurantRepository = restaurantRepository;
@@ -70,6 +74,7 @@ public class OwnerPortalService {
         this.auditLogService = auditLogService;
         this.paymentService = paymentService;
         this.geoService = geoService;
+        this.cloudinaryImageService = cloudinaryImageService;
     }
 
     @Transactional
@@ -266,6 +271,23 @@ public class OwnerPortalService {
         MenuItem saved = menuItemRepository.save(item);
         auditLogService.log(ownerEmail, UserRole.RESTAURANT, "MENU_ITEM_AVAILABILITY_UPDATE", "MENU_ITEM", String.valueOf(saved.getId()), "Available=" + saved.isAvailable());
         return toMenuItemResponse(saved);
+    }
+
+    @Transactional
+    public ImageUploadResponse uploadMenuImage(String ownerEmail, MultipartFile file) {
+        AppUser owner = appUserRepository.findByEmailIgnoreCase(ownerEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Owner not found"));
+
+        ImageUploadResponse uploaded = cloudinaryImageService.uploadMenuImage(file);
+        auditLogService.log(
+                owner.getEmail(),
+                owner.getRole(),
+                "MENU_IMAGE_UPLOAD",
+                "ASSET",
+                uploaded.publicId(),
+                uploaded.originalFilename()
+        );
+        return uploaded;
     }
 
     private RestaurantSummaryResponse toRestaurantSummary(Restaurant restaurant) {

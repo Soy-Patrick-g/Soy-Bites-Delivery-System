@@ -3,6 +3,7 @@ package com.foodhub.platform.controller;
 import com.foodhub.platform.dto.AuthResponse;
 import com.foodhub.platform.dto.CreateBranchRequest;
 import com.foodhub.platform.dto.CreateMenuItemRequest;
+import com.foodhub.platform.dto.ImageUploadResponse;
 import com.foodhub.platform.dto.MenuItemResponse;
 import com.foodhub.platform.dto.OrderResponse;
 import com.foodhub.platform.dto.OwnerDashboardResponse;
@@ -14,6 +15,7 @@ import com.foodhub.platform.service.OwnerPortalService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +23,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/owner")
@@ -51,6 +55,12 @@ public class OwnerController {
     public RestaurantSummaryResponse createBranch(@Valid @RequestBody CreateBranchRequest request,
                                                   Authentication authentication) {
         return ownerPortalService.createBranch(authentication.getName(), request);
+    }
+
+    @PostMapping(value = "/uploads/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ImageUploadResponse uploadImage(@RequestPart("file") MultipartFile file,
+                                           Authentication authentication) {
+        return ownerPortalService.uploadMenuImage(authentication.getName(), file);
     }
 
     @PostMapping("/restaurants/{restaurantId}/menu")

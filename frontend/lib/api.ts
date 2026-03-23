@@ -23,6 +23,7 @@ import {
   RestaurantOwnerRegisterRequest,
   RestaurantDetail,
   RestaurantSummary,
+  UploadedImage,
   UpdateOwnerMenuItemRequest
 } from "@/lib/types";
 
@@ -343,6 +344,20 @@ export async function createOwnerBranch(
     return data;
   } catch (error) {
     throw toMessage(error, "Creating branch");
+  }
+}
+
+export async function uploadOwnerImage(token: string, file: File): Promise<UploadedImage> {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const { data } = await api.post<UploadedImage>("/owner/uploads/images", formData, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Uploading image");
   }
 }
 
