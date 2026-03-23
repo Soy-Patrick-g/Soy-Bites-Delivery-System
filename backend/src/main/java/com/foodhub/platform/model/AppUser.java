@@ -8,7 +8,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -36,12 +38,39 @@ public class AppUser {
 
     private Double longitude;
 
+    @Column(nullable = false, precision = 10, scale = 2, columnDefinition = "numeric(10,2) default 0")
+    private BigDecimal accountBalance = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'UNVERIFIED'")
+    private KycStatus kycStatus = KycStatus.UNVERIFIED;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean riskFlagged = false;
+
+    private String alertNote;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
     @PrePersist
     void onCreate() {
+        applyDefaults();
         createdAt = Instant.now();
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        applyDefaults();
+    }
+
+    private void applyDefaults() {
+        if (accountBalance == null) {
+            accountBalance = BigDecimal.ZERO;
+        }
+        if (kycStatus == null) {
+            kycStatus = KycStatus.UNVERIFIED;
+        }
     }
 
     public Long getId() {
@@ -103,5 +132,36 @@ public class AppUser {
     public Instant getCreatedAt() {
         return createdAt;
     }
-}
 
+    public BigDecimal getAccountBalance() {
+        return accountBalance;
+    }
+
+    public void setAccountBalance(BigDecimal accountBalance) {
+        this.accountBalance = accountBalance;
+    }
+
+    public KycStatus getKycStatus() {
+        return kycStatus;
+    }
+
+    public void setKycStatus(KycStatus kycStatus) {
+        this.kycStatus = kycStatus;
+    }
+
+    public boolean isRiskFlagged() {
+        return riskFlagged;
+    }
+
+    public void setRiskFlagged(boolean riskFlagged) {
+        this.riskFlagged = riskFlagged;
+    }
+
+    public String getAlertNote() {
+        return alertNote;
+    }
+
+    public void setAlertNote(String alertNote) {
+        this.alertNote = alertNote;
+    }
+}

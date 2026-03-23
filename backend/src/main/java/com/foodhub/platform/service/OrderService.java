@@ -11,6 +11,7 @@ import com.foodhub.platform.model.FoodOrder;
 import com.foodhub.platform.model.MenuItem;
 import com.foodhub.platform.model.OrderItem;
 import com.foodhub.platform.model.OrderStatus;
+import com.foodhub.platform.model.PaymentStatus;
 import com.foodhub.platform.model.Restaurant;
 import com.foodhub.platform.model.UserRole;
 import com.foodhub.platform.repository.AppUserRepository;
@@ -37,6 +38,7 @@ public class OrderService {
     private final ReviewRepository reviewRepository;
     private final GeoService geoService;
     private final PaymentService paymentService;
+    private final AuditLogService auditLogService;
 
     public OrderService(AppUserRepository appUserRepository,
                         RestaurantRepository restaurantRepository,
@@ -44,7 +46,8 @@ public class OrderService {
                         OrderRepository orderRepository,
                         ReviewRepository reviewRepository,
                         GeoService geoService,
-                        PaymentService paymentService) {
+                        PaymentService paymentService,
+                        AuditLogService auditLogService) {
         this.appUserRepository = appUserRepository;
         this.restaurantRepository = restaurantRepository;
         this.menuItemRepository = menuItemRepository;
@@ -52,10 +55,20 @@ public class OrderService {
         this.reviewRepository = reviewRepository;
         this.geoService = geoService;
         this.paymentService = paymentService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
-    public OrderResponse placeOrder(PlaceOrderRequest request) {
+    public OrderResponse placeOrder(String requesterEmail, PlaceOrderRequest request) {
+        AppUser requester = appUserRepository.findByEmailIgnoreCase(requesterEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requester not found"));
+        if (requester.getRole() != UserRole.USER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only customers can place orders");
+        }
+        if (!requester.getEmail().equalsIgnoreCase(request.customerEmail())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only place orders for your own customer account");
+        }
+
         AppUser customer = appUserRepository.findByEmailIgnoreCase(request.customerEmail())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
         Restaurant restaurant = restaurantRepository.findById(request.restaurantId())
@@ -100,12 +113,22 @@ public class OrderService {
 
         FoodOrder saved = orderRepository.save(order);
         PaymentInitializationResponse payment = paymentService.initializeTransaction(saved);
+        auditLogService.log(customer.getEmail(), customer.getRole(), "ORDER_PLACE", "ORDER", String.valueOf(saved.getId()), "Single restaurant order created");
 
         return toResponse(orderRepository.save(saved), payment);
     }
 
     @Transactional
-    public OrderBatchResponse placeGroupOrder(PlaceGroupOrderRequest request) {
+    public OrderBatchResponse placeGroupOrder(String requesterEmail, PlaceGroupOrderRequest request) {
+        AppUser requester = appUserRepository.findByEmailIgnoreCase(requesterEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requester not found"));
+        if (requester.getRole() != UserRole.USER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only customers can place orders");
+        }
+        if (!requester.getEmail().equalsIgnoreCase(request.customerEmail())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only place orders for your own customer account");
+        }
+
         AppUser customer = appUserRepository.findByEmailIgnoreCase(request.customerEmail())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
 
@@ -177,6 +200,7 @@ public class OrderService {
                     return orderRepository.save(order);
                 })
                 .toList();
+        auditLogService.log(customer.getEmail(), customer.getRole(), "ORDER_BATCH_PLACE", "ORDER_GROUP", groupReference, "Combined order spanning " + finalizedOrders.size() + " restaurant orders");
 
         return new OrderBatchResponse(
                 groupReference,
@@ -189,16 +213,26 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderResponse getOrder(Long id) {
+    public OrderResponse getOrder(Long id, String requesterEmail) {
         FoodOrder order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        authorizeOrderAccess(order, requesterEmail);
         return toResponse(order, paymentService.getPaymentDetails(order));
     }
 
     @Transactional(readOnly = true)
-    public OrderBatchResponse getOrderBatch(Long id) {
+    public OrderBatchResponse getOrderBatch(Long id, String requesterEmail) {
         FoodOrder order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        AppUser requester = appUserRepository.findByEmailIgnoreCase(requesterEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requester not found"));
+
+        if (requester.getRole() != UserRole.ADMIN
+                && (requester.getRole() != UserRole.USER
+                || !order.getCustomer().getEmail().equalsIgnoreCase(requesterEmail))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Combined receipts are only available to the customer who placed the order");
+        }
 
         List<FoodOrder> orders = (order.getGroupReference() == null || order.getGroupReference().isBlank())
                 ? List.of(order)
@@ -249,7 +283,7 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse advanceOrder(Long orderId) {
+    public OrderResponse advanceOrder(Long orderId, String actorEmail) {
         FoodOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
@@ -261,6 +295,7 @@ public class OrderService {
         };
         order.setStatus(nextStatus);
         FoodOrder saved = orderRepository.save(order);
+        auditLogService.log(actorEmail, UserRole.ADMIN, "ORDER_ADVANCE", "ORDER", String.valueOf(saved.getId()), "Admin moved order to " + saved.getStatus());
         return toResponse(saved, paymentService.getPaymentDetails(saved));
     }
 
@@ -268,6 +303,37 @@ public class OrderService {
     public OrderResponse verifyPayment(String reference) {
         FoodOrder order = paymentService.verifyTransaction(reference);
         return toResponse(order, paymentService.getPaymentDetails(order));
+    }
+
+    private void authorizeOrderAccess(FoodOrder order, String requesterEmail) {
+        AppUser requester = appUserRepository.findByEmailIgnoreCase(requesterEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requester not found"));
+
+        if (requester.getRole() == UserRole.ADMIN) {
+            return;
+        }
+
+        if (requester.getRole() == UserRole.USER
+                && order.getCustomer().getEmail().equalsIgnoreCase(requesterEmail)) {
+            return;
+        }
+
+        if (requester.getRole() == UserRole.RESTAURANT
+                && order.getRestaurant().getOwner() != null
+                && order.getRestaurant().getOwner().getEmail().equalsIgnoreCase(requesterEmail)) {
+            return;
+        }
+
+        if (requester.getRole() == UserRole.DELIVERY
+                && ((order.getDeliveryPerson() != null
+                && order.getDeliveryPerson().getEmail().equalsIgnoreCase(requesterEmail))
+                || (order.getStatus() == OrderStatus.OUT_FOR_DELIVERY
+                && order.getDeliveryPerson() == null
+                && order.getPaymentStatus() == PaymentStatus.PAID))) {
+            return;
+        }
+
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only view orders related to your role");
     }
 
     private OrderResponse toResponse(FoodOrder order, PaymentInitializationResponse payment) {
@@ -293,6 +359,10 @@ public class OrderService {
                 order.getPaymentStatus(),
                 order.getPaymentReference(),
                 order.getDeliveryAddress(),
+                order.getDeliveryLatitude(),
+                order.getDeliveryLongitude(),
+                order.getRestaurant().getLatitude(),
+                order.getRestaurant().getLongitude(),
                 order.getDistanceKm(),
                 order.getSubtotal(),
                 order.getDeliveryFee(),

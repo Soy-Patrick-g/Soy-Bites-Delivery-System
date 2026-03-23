@@ -24,6 +24,8 @@ public class Restaurant {
     @Column(nullable = false)
     private String name;
 
+    private String brandName;
+
     @Column(nullable = false, length = 1200)
     private String description;
 
@@ -78,6 +80,14 @@ public class Restaurant {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getBrandName() {
+        return brandName;
+    }
+
+    public void setBrandName(String brandName) {
+        this.brandName = brandName;
     }
 
     public void setDescription(String description) {
@@ -152,4 +162,3 @@ public class Restaurant {
         return createdAt;
     }
 }
-

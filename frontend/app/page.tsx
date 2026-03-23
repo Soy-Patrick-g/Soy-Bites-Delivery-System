@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
+import { LocationMap } from "@/components/LocationMap";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { formatCurrency, getRestaurants } from "@/lib/api";
 import { RestaurantSummary } from "@/lib/types";
@@ -35,12 +36,12 @@ export default function HomePage() {
   return (
     <main className="pb-20">
       <section className="hero-grid bg-grid">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
           <div>
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.24em] text-olive">
               Accra Delivery Network
             </p>
-            <h1 className="max-w-3xl font-serif text-5xl leading-none text-ink sm:text-6xl">
+            <h1 className="max-w-3xl font-serif text-4xl leading-none text-ink sm:text-5xl lg:text-6xl">
               One cart, many kitchens, routed by where your customer actually is.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-ink/72">
@@ -88,7 +89,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="marketplace" className="mx-auto max-w-7xl px-6">
+      <section id="marketplace" className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">Nearby now</p>
@@ -103,7 +104,7 @@ export default function HomePage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-olive">Cart</p>
-              <h3 className="mt-2 text-3xl font-semibold text-ink">
+              <h3 className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">
                 {isCartReady ? `${itemCount} item(s) ready for checkout` : "Loading cart..."}
               </h3>
             </div>
@@ -152,10 +153,35 @@ export default function HomePage() {
             {error}
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-3">
-            {restaurants.map((restaurant) => (
-              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
-            ))}
+          <div className="space-y-6">
+            <section className="rounded-[30px] border border-ink/10 bg-white/90 p-6 shadow-soft">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-olive">Coverage map</p>
+                  <h3 className="mt-2 text-2xl font-semibold text-ink">See who is closest before you add to cart</h3>
+                </div>
+                <p className="max-w-md text-sm leading-6 text-ink/65">
+                  Restaurant markers are plotted from their stored coordinates, so distance and estimated delivery fee match the live backend response.
+                </p>
+              </div>
+              <LocationMap
+                restaurants={restaurants.map((restaurant) => ({
+                  id: String(restaurant.id),
+                  label: restaurant.name,
+                  address: restaurant.address,
+                  latitude: restaurant.latitude,
+                  longitude: restaurant.longitude,
+                  distanceKm: restaurant.distanceKm,
+                  estimatedDeliveryFee: restaurant.estimatedDeliveryFee
+                }))}
+              />
+            </section>
+
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {restaurants.map((restaurant) => (
+                <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+              ))}
+            </div>
           </div>
         )}
       </section>

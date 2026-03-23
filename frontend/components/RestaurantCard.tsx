@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
@@ -16,28 +15,26 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const [previewItems, setPreviewItems] = useState<RestaurantPreviewItem[]>(restaurant.featuredItems ?? []);
 
   useEffect(() => {
-    async function loadFallbackMenu() {
-      if ((restaurant.featuredItems ?? []).length > 0) {
-        setPreviewItems(restaurant.featuredItems ?? []);
-        return;
-      }
-
+    async function loadFreshMenu() {
       try {
         const detail = await getRestaurant(String(restaurant.id));
         setPreviewItems(
-          detail.menu.slice(0, 3).map((item) => ({
+          [...detail.menu]
+            .sort((left, right) => right.id - left.id)
+            .slice(0, 3)
+            .map((item) => ({
             id: item.id,
             name: item.name,
             price: item.price,
             imageUrl: item.imageUrl
-          }))
+            }))
         );
       } catch {
-        setPreviewItems([]);
+        setPreviewItems(restaurant.featuredItems ?? []);
       }
     }
 
-    void loadFallbackMenu();
+    void loadFreshMenu();
   }, [restaurant.featuredItems, restaurant.id]);
 
   return (
@@ -47,7 +44,13 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-olive">
             {restaurant.cuisine}
           </p>
+          {restaurant.brandName ? (
+            <p className="mt-2 text-sm font-semibold text-ink/60">{restaurant.brandName}</p>
+          ) : null}
           <h3 className="mt-2 text-2xl font-semibold text-ink">{restaurant.name}</h3>
+          {restaurant.brandName && restaurant.brandName !== restaurant.name ? (
+            <p className="mt-1 text-xs uppercase tracking-[0.16em] text-olive">Branch</p>
+          ) : null}
         </div>
         <span className="rounded-full bg-citrus/20 px-3 py-1 text-sm font-medium text-ink">
           {restaurant.averageRating.toFixed(1)} / 5
@@ -59,7 +62,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
           <div key={item.id} className="grid grid-cols-[72px_1fr] gap-3 rounded-2xl bg-cream/80 px-3 py-3">
             <div className="relative h-[72px] overflow-hidden rounded-2xl bg-cream">
               {item.imageUrl ? (
-                <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
               ) : (
                 <div className="h-full w-full bg-cream" />
               )}

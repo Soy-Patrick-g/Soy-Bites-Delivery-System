@@ -1,10 +1,18 @@
 import axios from "axios";
 import {
+  AdminAuditLog,
   AdminDashboard,
+  AdminSessionRecord,
+  AdminTransaction,
+  AdminTransactionFilters,
+  AdminUserInsight,
   AuthSession,
+  CreateRestaurantBranchRequest,
+  CreateOwnerMenuItemRequest,
   DeliveryDashboard,
   DeliveryRegisterRequest,
   LoginRequest,
+  MenuItem,
   OrderBatch,
   OwnerDashboard,
   Order,
@@ -14,13 +22,18 @@ import {
   PlaceOrderPayload,
   RestaurantOwnerRegisterRequest,
   RestaurantDetail,
-  RestaurantSummary
+  RestaurantSummary,
+  UpdateOwnerMenuItemRequest
 } from "@/lib/types";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api",
   timeout: 15000
 });
+
+function cleanParams(params: Record<string, string | undefined>) {
+  return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== ""));
+}
 
 function toMessage(error: unknown, label: string): Error {
   if (axios.isAxiosError(error)) {
@@ -60,18 +73,22 @@ export async function getRestaurant(id: string): Promise<RestaurantDetail> {
   }
 }
 
-export async function getOrder(id: string): Promise<Order> {
+export async function getOrder(id: string, token?: string): Promise<Order> {
   try {
-    const { data } = await api.get<Order>(`/orders/${id}`);
+    const { data } = await api.get<Order>(`/orders/${id}`, {
+      headers: authHeaders(token)
+    });
     return data;
   } catch (error) {
     throw toMessage(error, `Loading order ${id}`);
   }
 }
 
-export async function getOrderBatch(id: string): Promise<OrderBatch> {
+export async function getOrderBatch(id: string, token?: string): Promise<OrderBatch> {
   try {
-    const { data } = await api.get<OrderBatch>(`/orders/${id}/batch`);
+    const { data } = await api.get<OrderBatch>(`/orders/${id}/batch`, {
+      headers: authHeaders(token)
+    });
     return data;
   } catch (error) {
     throw toMessage(error, `Loading combined receipt ${id}`);
@@ -100,12 +117,81 @@ export async function getDashboard(token: string): Promise<AdminDashboard> {
   }
 }
 
+export async function getAdminTransactions(token: string, filters: AdminTransactionFilters): Promise<AdminTransaction[]> {
+  try {
+    const { data } = await api.get<AdminTransaction[]>("/admin/transactions", {
+      headers: authHeaders(token),
+      params: cleanParams(filters)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Loading transactions");
+  }
+}
+
+export async function exportAdminTransactionsCsv(token: string, filters: AdminTransactionFilters): Promise<Blob> {
+  try {
+    const { data } = await api.get("/admin/transactions/export", {
+      headers: authHeaders(token),
+      params: cleanParams(filters),
+      responseType: "blob"
+    });
+    return data as Blob;
+  } catch (error) {
+    throw toMessage(error, "Exporting transactions CSV");
+  }
+}
+
+export async function getAdminAuditLogs(token: string): Promise<AdminAuditLog[]> {
+  try {
+    const { data } = await api.get<AdminAuditLog[]>("/admin/audit-logs", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Loading audit logs");
+  }
+}
+
+export async function getAdminSessions(token: string): Promise<AdminSessionRecord[]> {
+  try {
+    const { data } = await api.get<AdminSessionRecord[]>("/admin/sessions", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Loading sessions");
+  }
+}
+
+export async function getAdminUsers(token: string, search?: string): Promise<AdminUserInsight[]> {
+  try {
+    const { data } = await api.get<AdminUserInsight[]>("/admin/users", {
+      headers: authHeaders(token),
+      params: cleanParams({ search })
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Loading user insights");
+  }
+}
+
 export async function login(request: LoginRequest): Promise<AuthSession> {
   try {
     const { data } = await api.post<AuthSession>("/auth/login", request);
     return data;
   } catch (error) {
     throw toMessage(error, "Login");
+  }
+}
+
+export async function logoutSession(token: string): Promise<void> {
+  try {
+    await api.post("/auth/logout", undefined, {
+      headers: authHeaders(token)
+    });
+  } catch (error) {
+    throw toMessage(error, "Logout");
   }
 }
 
@@ -176,11 +262,87 @@ export async function verifyPayment(reference: string): Promise<Order> {
 export async function getOwnerDashboard(token: string): Promise<OwnerDashboard> {
   try {
     const { data } = await api.get<OwnerDashboard>("/owner/dashboard", {
-      headers: authHeaders(token)
+      headers: authHeaders(token),
+      timeout: 60000
     });
     return data;
   } catch (error) {
     throw toMessage(error, "Loading restaurant dashboard");
+  }
+}
+
+export async function getOwnerRestaurantMenu(token: string, restaurantId: number): Promise<MenuItem[]> {
+  try {
+    const { data } = await api.get<MenuItem[]>(`/owner/restaurants/${restaurantId}/menu`, {
+      headers: authHeaders(token),
+      timeout: 45000
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Loading restaurant menu ${restaurantId}`);
+  }
+}
+
+export async function createOwnerMenuItem(
+  token: string,
+  restaurantId: number,
+  payload: CreateOwnerMenuItemRequest
+): Promise<MenuItem> {
+  try {
+    const { data } = await api.post<MenuItem>(`/owner/restaurants/${restaurantId}/menu`, payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Creating menu item");
+  }
+}
+
+export async function updateOwnerMenuItem(
+  token: string,
+  restaurantId: number,
+  menuItemId: number,
+  payload: UpdateOwnerMenuItemRequest
+): Promise<MenuItem> {
+  try {
+    const { data } = await api.patch<MenuItem>(`/owner/restaurants/${restaurantId}/menu/${menuItemId}`, payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Updating menu item ${menuItemId}`);
+  }
+}
+
+export async function setOwnerMenuItemAvailability(
+  token: string,
+  restaurantId: number,
+  menuItemId: number,
+  available: boolean
+): Promise<MenuItem> {
+  try {
+    const { data } = await api.patch<MenuItem>(
+      `/owner/restaurants/${restaurantId}/menu/${menuItemId}/availability`,
+      { available },
+      { headers: authHeaders(token) }
+    );
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Updating menu availability ${menuItemId}`);
+  }
+}
+
+export async function createOwnerBranch(
+  token: string,
+  payload: CreateRestaurantBranchRequest
+): Promise<RestaurantSummary> {
+  try {
+    const { data } = await api.post<RestaurantSummary>("/owner/branches", payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Creating branch");
   }
 }
 
@@ -229,9 +391,8 @@ export async function advanceOwnerOrder(token: string, orderId: number): Promise
 }
 
 export function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-GH", {
-    style: "currency",
-    currency: "GHS",
+  return `gh₵${new Intl.NumberFormat("en-GH", {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  }).format(amount);
+  }).format(amount)}`;
 }

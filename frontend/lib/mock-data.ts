@@ -20,6 +20,7 @@ export const mockRestaurants: RestaurantDetail[] = [
         description: "Smoky jollof rice, grilled chicken, plantain, and pepper sauce.",
         price: 45,
         imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=80",
+        available: true,
         vegetarian: false,
         spicy: true
       },
@@ -29,6 +30,7 @@ export const mockRestaurants: RestaurantDetail[] = [
         description: "Crispy fries dusted with suya spice and served with aioli.",
         price: 20,
         imageUrl: "https://images.unsplash.com/photo-1576107232684-1279f390859f?auto=format&fit=crop&w=1200&q=80",
+        available: true,
         vegetarian: true,
         spicy: true
       }
@@ -62,6 +64,7 @@ export const mockRestaurants: RestaurantDetail[] = [
         description: "Marinated salmon with avocado, cucumber, and sesame rice.",
         price: 65,
         imageUrl: "https://images.unsplash.com/photo-1546069901-d5bfd2cbfb1f?auto=format&fit=crop&w=1200&q=80",
+        available: true,
         vegetarian: false,
         spicy: false
       },
@@ -71,6 +74,7 @@ export const mockRestaurants: RestaurantDetail[] = [
         description: "Eight-piece cucumber and avocado rolls with miso dip.",
         price: 40,
         imageUrl: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=1200&q=80",
+        available: true,
         vegetarian: true,
         spicy: false
       }
@@ -104,6 +108,7 @@ export const mockRestaurants: RestaurantDetail[] = [
         description: "Fettuccine in creamy truffle sauce with parmesan shards.",
         price: 58,
         imageUrl: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=1200&q=80",
+        available: true,
         vegetarian: true,
         spicy: false
       },
@@ -113,6 +118,7 @@ export const mockRestaurants: RestaurantDetail[] = [
         description: "Spicy tomato pasta with grilled chicken and basil.",
         price: 52,
         imageUrl: "https://images.unsplash.com/photo-1521389508051-d7ffb5dc8dfb?auto=format&fit=crop&w=1200&q=80",
+        available: true,
         vegetarian: false,
         spicy: true
       }
@@ -130,7 +136,7 @@ export const mockRestaurants: RestaurantDetail[] = [
 ];
 
 export const mockRestaurantSummaries: RestaurantSummary[] = mockRestaurants.map(
-  ({ menu, reviews, latitude, longitude, ...restaurant }) => restaurant
+  ({ menu, reviews, ...restaurant }) => restaurant
 );
 
 export const mockOrder: Order = {
@@ -141,6 +147,10 @@ export const mockOrder: Order = {
   paymentStatus: "INITIALIZED",
   paymentReference: "FH-9001-1742286220000",
   deliveryAddress: "East Legon, Lagos Avenue 14",
+  deliveryLatitude: 5.56,
+  deliveryLongitude: -0.205,
+  restaurantLatitude: 5.565,
+  restaurantLongitude: -0.19,
   distanceKm: 1.2,
   subtotal: 65,
   deliveryFee: 716,
@@ -164,7 +174,24 @@ export const mockDashboard: AdminDashboard = {
   totalRestaurants: 3,
   totalOrders: 126,
   totalReviews: 39,
+  totalUsers: 12,
+  activeSessions: 4,
   totalRevenue: 24560,
+  transactionsToday: 18,
+  transactionsThisMonth: 402,
+  transactionsThisYear: 1248,
+  refundsTotal: 320,
+  chargebacksTotal: 95,
+  netSettlementAmount: 24145,
   totalOwnerAllocations: 17840,
+  volumeTrends: [
+    { label: "2026-03-17", transactionCount: 42, volume: 3820 },
+    { label: "2026-03-18", transactionCount: 39, volume: 3610 },
+    { label: "2026-03-19", transactionCount: 44, volume: 4085 },
+    { label: "2026-03-20", transactionCount: 37, volume: 3340 },
+    { label: "2026-03-21", transactionCount: 41, volume: 3950 },
+    { label: "2026-03-22", transactionCount: 48, volume: 4295 },
+    { label: "2026-03-23", transactionCount: 18, volume: 1460 }
+  ],
   topRestaurants: mockRestaurantSummaries.slice().sort((a, b) => b.averageRating - a.averageRating)
 };

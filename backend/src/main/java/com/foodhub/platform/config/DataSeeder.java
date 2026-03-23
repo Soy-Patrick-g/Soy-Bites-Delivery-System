@@ -19,6 +19,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Configuration
 public class DataSeeder {
 
+    private static final String PRIMARY_BRANCH_BRAND = "Accra Kitchen Collective";
+
     @Bean
     @Order(1)
     CommandLineRunner seedDatabase(AppUserRepository appUserRepository,
@@ -32,6 +34,7 @@ public class DataSeeder {
                     AppUser rider = createUser("Kofi Rider", "rider@foodhub.dev", UserRole.DELIVERY, 5.5725, -0.1760, passwordEncoder);
                     appUserRepository.save(rider);
                 }
+                normalizePrimaryBranches(restaurantRepository, menuItemRepository);
                 seedSecondOwner(appUserRepository, restaurantRepository, menuItemRepository, passwordEncoder);
                 return;
             }
@@ -47,15 +50,18 @@ public class DataSeeder {
             appUserRepository.save(customer);
             appUserRepository.save(rider);
 
-            Restaurant grill = createRestaurant("Savannah Grill", "Charcoal grilled rice bowls, shawarma, and suya-inspired sides.", "African Fusion", "Oxford Street 18", "Accra", 5.5650, -0.1900, vendor, new BigDecimal("4.60"));
-            Restaurant sushi = createRestaurant("Harbor Sushi Lab", "Fresh sushi platters and poke bowls for lunch and dinner rushes.", "Japanese", "Marine Drive 5", "Accra", 5.5500, -0.2100, vendor, new BigDecimal("4.80"));
-            Restaurant pasta = createRestaurant("Roma Pantry", "Comfort pasta, salads, and tiramisu for family-style dining.", "Italian", "Airport Residential 9", "Accra", 5.6150, -0.1750, vendor, new BigDecimal("4.40"));
-            Restaurant lagoon = createRestaurant("Lagoon Clay Oven", "Wood-fired flatbreads, grilled seafood, and bright mezze for coastal evenings.", "Mediterranean", "Labadi Beach Road 11", "Accra", 5.5710, -0.1480, secondVendor, new BigDecimal("4.70"));
+            Restaurant grill = createRestaurant("Savannah Grill", PRIMARY_BRANCH_BRAND, "Charcoal grilled rice bowls, shawarma, and suya-inspired sides.", "African Fusion", "Oxford Street 18", "Accra", 5.5650, -0.1900, vendor, new BigDecimal("4.60"));
+            Restaurant sushi = createRestaurant("Harbor Sushi Lab", PRIMARY_BRANCH_BRAND, "Fresh sushi platters and poke bowls for lunch and dinner rushes.", "Japanese", "Marine Drive 5", "Accra", 5.5500, -0.2100, vendor, new BigDecimal("4.80"));
+            Restaurant pasta = createRestaurant("Roma Pantry", PRIMARY_BRANCH_BRAND, "Comfort pasta, salads, and tiramisu for family-style dining.", "Italian", "Airport Residential 9", "Accra", 5.6150, -0.1750, vendor, new BigDecimal("4.40"));
+            Restaurant lagoon = createRestaurant("Lagoon Clay Oven", "Lagoon Clay Oven", "Wood-fired flatbreads, grilled seafood, and bright mezze for coastal evenings.", "Mediterranean", "Labadi Beach Road 11", "Accra", 5.5710, -0.1480, secondVendor, new BigDecimal("4.70"));
             restaurantRepository.save(grill);
             restaurantRepository.save(sushi);
             restaurantRepository.save(pasta);
             restaurantRepository.save(lagoon);
 
+            seedSharedBranchMenu(menuItemRepository, grill);
+            seedSharedBranchMenu(menuItemRepository, sushi);
+            seedSharedBranchMenu(menuItemRepository, pasta);
             menuItemRepository.save(createMenuItem(grill, "Jollof Fire Bowl", "Smoky jollof rice, grilled chicken, plantain, and pepper sauce.", "45.00", false, true));
             menuItemRepository.save(createMenuItem(grill, "Suya Fries", "Crispy fries dusted with suya spice and served with aioli.", "20.00", true, true));
             menuItemRepository.save(createMenuItem(sushi, "Salmon Poke", "Marinated salmon with avocado, cucumber, and sesame rice.", "65.00", false, false));
@@ -87,6 +93,7 @@ public class DataSeeder {
                 .orElseGet(() -> restaurantRepository.save(
                         createRestaurant(
                                 "Lagoon Clay Oven",
+                                "Lagoon Clay Oven",
                                 "Wood-fired flatbreads, grilled seafood, and bright mezze for coastal evenings.",
                                 "Mediterranean",
                                 "Labadi Beach Road 11",
@@ -98,10 +105,26 @@ public class DataSeeder {
                         )
                 ));
 
+        lagoon.setBrandName("Lagoon Clay Oven");
+        restaurantRepository.save(lagoon);
+
         if (menuItemRepository.findByRestaurantIdAndAvailableTrue(lagoon.getId()).isEmpty()) {
             menuItemRepository.save(createMenuItem(lagoon, "Harissa Prawn Flatbread", "Wood-fired flatbread layered with prawns, peppers, and harissa yogurt.", "62.00", false, true));
             menuItemRepository.save(createMenuItem(lagoon, "Citrus Halloumi Bowl", "Halloumi, herb couscous, cucumber ribbons, and lemon dressing.", "48.00", true, false));
         }
+    }
+
+    private void normalizePrimaryBranches(RestaurantRepository restaurantRepository,
+                                          MenuItemRepository menuItemRepository) {
+        restaurantRepository.findByActiveTrue().stream()
+                .filter(restaurant -> isPrimaryBranch(restaurant.getName()))
+                .forEach(restaurant -> {
+                    if (!PRIMARY_BRANCH_BRAND.equals(restaurant.getBrandName())) {
+                        restaurant.setBrandName(PRIMARY_BRANCH_BRAND);
+                        restaurantRepository.save(restaurant);
+                    }
+                    seedSharedBranchMenu(menuItemRepository, restaurant);
+                });
     }
 
     private AppUser createUser(String fullName,
@@ -121,6 +144,7 @@ public class DataSeeder {
     }
 
     private Restaurant createRestaurant(String name,
+                                        String brandName,
                                         String description,
                                         String cuisine,
                                         String address,
@@ -131,6 +155,7 @@ public class DataSeeder {
                                         BigDecimal averageRating) {
         Restaurant restaurant = new Restaurant();
         restaurant.setName(name);
+        restaurant.setBrandName(brandName);
         restaurant.setDescription(description);
         restaurant.setCuisine(cuisine);
         restaurant.setAddress(address);
@@ -158,6 +183,33 @@ public class DataSeeder {
         item.setSpicy(spicy);
         item.setImageUrl("https://images.unsplash.com/photo-1546069901-ba9599a7e63c");
         return item;
+    }
+
+    private void seedSharedBranchMenu(MenuItemRepository menuItemRepository, Restaurant restaurant) {
+        ensureMenuItem(menuItemRepository, restaurant, "House Rice Bowl", "Signature rice bowl served across every Accra Kitchen Collective branch.", "34.00", false, false);
+        ensureMenuItem(menuItemRepository, restaurant, "Crispy Chicken Bites", "Shared branch staple with pepper dip and herbs.", "28.00", false, true);
+        ensureMenuItem(menuItemRepository, restaurant, "Citrus Cooler", "House drink available at every branch.", "14.00", true, false);
+    }
+
+    private void ensureMenuItem(MenuItemRepository menuItemRepository,
+                                Restaurant restaurant,
+                                String name,
+                                String description,
+                                String price,
+                                boolean vegetarian,
+                                boolean spicy) {
+        boolean exists = menuItemRepository.findByRestaurantIdOrderByNameAsc(restaurant.getId()).stream()
+                .anyMatch(item -> item.getName().equalsIgnoreCase(name));
+
+        if (!exists) {
+            menuItemRepository.save(createMenuItem(restaurant, name, description, price, vegetarian, spicy));
+        }
+    }
+
+    private boolean isPrimaryBranch(String name) {
+        return "Harbor Sushi Lab".equalsIgnoreCase(name)
+                || "Roma Pantry".equalsIgnoreCase(name)
+                || "Savannah Grill".equalsIgnoreCase(name);
     }
 
     private Review createReview(AppUser customer, Restaurant restaurant, int rating, String comment) {

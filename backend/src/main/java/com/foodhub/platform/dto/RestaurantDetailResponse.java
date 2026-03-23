@@ -6,6 +6,7 @@ import java.util.List;
 public record RestaurantDetailResponse(
         Long id,
         String name,
+        String brandName,
         String description,
         String cuisine,
         String address,
@@ -19,4 +20,3 @@ public record RestaurantDetailResponse(
         List<ReviewResponse> reviews
 ) {
 }
-

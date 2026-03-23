@@ -8,8 +8,8 @@ public record MenuItemResponse(
         String description,
         BigDecimal price,
         String imageUrl,
+        boolean available,
         boolean vegetarian,
         boolean spicy
 ) {
 }
-

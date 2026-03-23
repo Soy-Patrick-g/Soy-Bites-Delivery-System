@@ -2,6 +2,7 @@ package com.foodhub.platform.service;
 
 import com.foodhub.platform.dto.PaymentInitializationResponse;
 import com.foodhub.platform.model.FoodOrder;
+import com.foodhub.platform.model.AppUser;
 import com.foodhub.platform.model.PaymentStatus;
 import com.foodhub.platform.model.PaymentTransaction;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,6 +29,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final AuditLogService auditLogService;
 
     @Value("${app.paystack.enabled:false}")
     private boolean paystackEnabled;
@@ -44,11 +46,13 @@ public class PaymentService {
     public PaymentService(PaymentTransactionRepository paymentTransactionRepository,
                           OrderRepository orderRepository,
                           RestClient.Builder restClientBuilder,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          AuditLogService auditLogService) {
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.orderRepository = orderRepository;
         this.restClient = restClientBuilder.build();
         this.objectMapper = objectMapper;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -72,6 +76,7 @@ public class PaymentService {
         transaction.setStatus(PaymentStatus.INITIALIZED);
         transaction.setAmount(amount);
         paymentTransactionRepository.save(transaction);
+        auditLogService.log(order.getCustomer().getEmail(), order.getCustomer().getRole(), "PAYMENT_INITIALIZE", "PAYMENT_TRANSACTION", transaction.getReference(), "Initialized " + payment.provider() + " payment");
 
         order.setPaymentReference(payment.reference());
         order.setPaymentStatus(PaymentStatus.INITIALIZED);
@@ -107,7 +112,9 @@ public class PaymentService {
         if (isSimulated(transaction)) {
             transaction.setStatus(PaymentStatus.PAID);
             updateGroupPaymentStatus(transaction.getOrder(), PaymentStatus.PAID);
+            creditRestaurantOwners(transaction.getOrder());
             paymentTransactionRepository.save(transaction);
+            auditLogService.log(transaction.getOrder().getCustomer().getEmail(), transaction.getOrder().getCustomer().getRole(), "PAYMENT_VERIFY", "PAYMENT_TRANSACTION", transaction.getReference(), "Demo payment marked as paid");
             return transaction.getOrder();
         }
 
@@ -140,7 +147,11 @@ public class PaymentService {
 
         transaction.setStatus(paymentStatus);
         updateGroupPaymentStatus(transaction.getOrder(), paymentStatus);
+        if (paymentStatus == PaymentStatus.PAID) {
+            creditRestaurantOwners(transaction.getOrder());
+        }
         paymentTransactionRepository.save(transaction);
+        auditLogService.log(transaction.getOrder().getCustomer().getEmail(), transaction.getOrder().getCustomer().getRole(), "PAYMENT_VERIFY", "PAYMENT_TRANSACTION", transaction.getReference(), "Payment status is " + paymentStatus);
         return transaction.getOrder();
     }
 
@@ -212,5 +223,22 @@ public class PaymentService {
         } else {
             order.setPaymentStatus(paymentStatus);
         }
+    }
+
+    private void creditRestaurantOwners(FoodOrder order) {
+        if (order.getGroupReference() != null && !order.getGroupReference().isBlank()) {
+            orderRepository.findByGroupReferenceOrderByCreatedAtAsc(order.getGroupReference())
+                    .forEach(this::creditOwnerAllocation);
+            return;
+        }
+        creditOwnerAllocation(order);
+    }
+
+    private void creditOwnerAllocation(FoodOrder order) {
+        if (order.getRestaurant() == null || order.getRestaurant().getOwner() == null) {
+            return;
+        }
+        AppUser owner = order.getRestaurant().getOwner();
+        owner.setAccountBalance(owner.getAccountBalance().add(order.getSubtotal()));
     }
 }

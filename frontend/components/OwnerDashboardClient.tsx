@@ -12,7 +12,21 @@ export function OwnerDashboardClient() {
   const [dashboard, setDashboard] = useState<OwnerDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showSlowLoadNotice, setShowSlowLoadNotice] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setShowSlowLoadNotice(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowSlowLoadNotice(true);
+    }, 8000);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
 
   useEffect(() => {
     async function load() {
@@ -59,7 +73,18 @@ export function OwnerDashboardClient() {
   }
 
   if (!isReady || isLoading) {
-    return <Shell><p className="text-sm text-ink/70">Loading restaurant dashboard...</p></Shell>;
+    return (
+      <Shell>
+        <div className="space-y-3">
+          <p className="text-sm text-ink/70">Loading restaurant dashboard...</p>
+          {showSlowLoadNotice ? (
+            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
+              This page is taking longer to load. The request is still running.
+            </p>
+          ) : null}
+        </div>
+      </Shell>
+    );
   }
 
   if (!session) {
@@ -67,7 +92,7 @@ export function OwnerDashboardClient() {
       <Shell>
         <GateCard
           title="Restaurant login required"
-          body="Sign in as a restaurant owner to manage incoming orders and view your storefront performance."
+          body="Sign in as a restaurant owner to manage incoming orders and view storefront performance."
           href={`/login?redirect=${encodeURIComponent("/restaurant/dashboard")}`}
           action="Login as owner"
         />
@@ -101,7 +126,7 @@ export function OwnerDashboardClient() {
       {error ? <p className="mb-6 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
       <section className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[32px] bg-ink p-8 text-cream shadow-soft">
+        <div className="rounded-[32px] bg-ink p-5 text-cream shadow-soft sm:p-6 lg:p-8">
           <p className="text-sm uppercase tracking-[0.18em] text-citrus">Owner profile</p>
           <h2 className="mt-3 text-3xl font-semibold">{dashboard?.ownerName}</h2>
           <p className="mt-2 text-sm text-cream/65">{dashboard?.ownerEmail}</p>
@@ -115,6 +140,7 @@ export function OwnerDashboardClient() {
             {dashboard?.restaurants.map((restaurant) => (
               <article key={restaurant.id} className="rounded-3xl bg-white/8 p-5">
                 <p className="text-xs uppercase tracking-[0.16em] text-citrus">{restaurant.cuisine}</p>
+                {restaurant.brandName ? <p className="mt-2 text-sm text-cream/65">{restaurant.brandName}</p> : null}
                 <h3 className="mt-2 text-2xl font-semibold">{restaurant.name}</h3>
                 <p className="mt-3 text-sm text-cream/68">{restaurant.address}</p>
                 <div className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-[0.14em] text-cream/60">
@@ -126,15 +152,16 @@ export function OwnerDashboardClient() {
           </div>
         </div>
 
-        <div className="rounded-[32px] border border-white/50 bg-white/90 p-8 shadow-soft">
-          <div className="flex items-end justify-between gap-4">
+        <div className="rounded-[32px] border border-white/50 bg-white/90 p-5 shadow-soft sm:p-6 lg:p-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-sm uppercase tracking-[0.18em] text-olive">Incoming orders</p>
               <h2 className="mt-2 text-3xl font-semibold text-ink">Process kitchen workflow</h2>
             </div>
-            <Link href="/restaurant/register" className="text-sm font-semibold text-olive">
-              Register another restaurant
-            </Link>
+            <div className="flex flex-wrap gap-4 text-sm font-semibold text-olive">
+              <Link href="/restaurant/menu">Manage menu</Link>
+              <Link href="/restaurant/register">Register another restaurant</Link>
+            </div>
           </div>
 
           <div className="mt-6 space-y-4">
@@ -161,10 +188,10 @@ export function OwnerDashboardClient() {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto max-w-7xl px-6 py-12">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">Restaurant dashboard</p>
-        <h1 className="mt-2 font-serif text-5xl text-ink">Register your kitchen and process live orders</h1>
+        <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Process live orders for your branches</h1>
       </div>
       {children}
     </main>
@@ -173,7 +200,7 @@ function Shell({ children }: { children: ReactNode }) {
 
 function GateCard(props: { title: string; body: string; href: string; action: string }) {
   return (
-    <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
+    <div className="rounded-[32px] border border-ink/10 bg-white/90 p-6 shadow-soft sm:p-8">
       <h2 className="text-2xl font-semibold text-ink">{props.title}</h2>
       <p className="mt-4 max-w-xl text-sm leading-7 text-ink/70">{props.body}</p>
       <Link
@@ -193,8 +220,10 @@ function OrderCard(props: { order: Order; busy: boolean; onAdvance: () => void }
       : props.order.status === "PREPARING"
         ? "Mark out for delivery"
         : props.order.status === "OUT_FOR_DELIVERY"
-          ? "Mark delivered"
+          ? "Waiting for rider"
           : "Completed";
+
+  const canAdvance = props.order.status === "RECEIVED" || props.order.status === "PREPARING";
 
   return (
     <article className="rounded-[28px] border border-ink/10 bg-cream px-5 py-5">
@@ -230,7 +259,7 @@ function OrderCard(props: { order: Order; busy: boolean; onAdvance: () => void }
         <button
           type="button"
           onClick={props.onAdvance}
-          disabled={props.busy || props.order.status === "DELIVERED"}
+          disabled={props.busy || !canAdvance}
           className="rounded-full bg-ember px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {props.busy ? "Updating..." : nextLabel}

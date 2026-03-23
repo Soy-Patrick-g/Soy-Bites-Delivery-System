@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
+import { LocationMap } from "@/components/LocationMap";
 import { formatCurrency, getRestaurants, placeGroupOrder } from "@/lib/api";
 import { RestaurantSummary } from "@/lib/types";
 
@@ -67,6 +67,45 @@ export function CheckoutClient() {
 
   const deliveryFee = groupedItems.reduce((sum, group) => sum + group.deliveryFee, 0);
   const total = subtotal + deliveryFee;
+  const deliveryPoint = useMemo(() => {
+    const latitude = Number(deliveryLatitude);
+    const longitude = Number(deliveryLongitude);
+
+    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+      return undefined;
+    }
+
+    return {
+      id: "delivery-point",
+      label: "Delivery destination",
+      address: deliveryAddress,
+      latitude,
+      longitude
+    };
+  }, [deliveryAddress, deliveryLatitude, deliveryLongitude]);
+
+  const mappedRestaurants = useMemo(
+    () =>
+      groupedItems
+        .map((group) => {
+          const source = group.items[0] ? restaurantById.get(group.items[0].restaurantId) : undefined;
+          if (!source) {
+            return null;
+          }
+
+          return {
+            id: String(source.id),
+            label: source.name,
+            address: source.address,
+            latitude: source.latitude,
+            longitude: source.longitude,
+            distanceKm: source.distanceKm,
+            estimatedDeliveryFee: source.estimatedDeliveryFee
+          };
+        })
+        .filter((value): value is NonNullable<typeof value> => value !== null),
+    [groupedItems, restaurantById]
+  );
 
   async function handleSubmit() {
     if (!session) {
@@ -134,6 +173,40 @@ export function CheckoutClient() {
     );
   }
 
+  if (session.role !== "USER") {
+    const portalHref =
+      session.role === "ADMIN"
+        ? "/admin"
+        : session.role === "RESTAURANT"
+          ? "/restaurant/dashboard"
+          : "/delivery/dashboard";
+
+    return (
+      <Shell>
+        <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
+          <h2 className="text-2xl font-semibold text-ink">Customer checkout only</h2>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-ink/70">
+            Only accounts with the `USER` role can place orders. Your current role is {session.role}, so ordering is blocked by both the UI and backend.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href={portalHref}
+              className="inline-flex rounded-full border border-ink/15 px-6 py-3 text-sm font-semibold text-ink"
+            >
+              Open your dashboard
+            </Link>
+            <Link
+              href="/#marketplace"
+              className="inline-flex rounded-full bg-ember px-6 py-3 text-sm font-semibold text-white"
+            >
+              Browse restaurants
+            </Link>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <Shell>
@@ -157,7 +230,7 @@ export function CheckoutClient() {
     <Shell>
       <section className="grid gap-8 lg:grid-cols-[1fr_420px]">
         <div className="space-y-8">
-          <section className="rounded-[32px] border border-white/50 bg-white/85 p-8 shadow-soft">
+          <section className="rounded-[32px] border border-white/50 bg-white/85 p-5 shadow-soft sm:p-6 lg:p-8">
             <h2 className="text-2xl font-semibold text-ink">Delivery details</h2>
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               <Field label="Customer name" value={session.fullName} readOnly />
@@ -168,7 +241,20 @@ export function CheckoutClient() {
             </div>
           </section>
 
-          <section className="rounded-[32px] bg-ink p-6 text-cream shadow-soft">
+          <section className="rounded-[32px] border border-white/50 bg-white/90 p-5 shadow-soft sm:p-6">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-sm uppercase tracking-[0.18em] text-olive">Route planning</p>
+                <h2 className="mt-2 text-2xl font-semibold text-ink">Restaurants mapped against the drop-off point</h2>
+              </div>
+              <p className="max-w-md text-sm leading-6 text-ink/65">
+                Dashed lines show each restaurant leg feeding into this combined checkout so delivery distance stays visible while you edit coordinates.
+              </p>
+            </div>
+            <LocationMap restaurants={mappedRestaurants} deliveryPoint={deliveryPoint} />
+          </section>
+
+          <section className="rounded-[32px] bg-ink p-5 text-cream shadow-soft sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-cream/60">Your cart</p>
@@ -195,7 +281,7 @@ export function CheckoutClient() {
                       <div key={item.menuItemId} className="grid gap-4 rounded-3xl bg-white/8 p-4 md:grid-cols-[96px_1fr_auto] md:items-center">
                         <div className="relative h-24 overflow-hidden rounded-2xl bg-cream">
                           {item.imageUrl ? (
-                            <Image src={item.imageUrl} alt={item.itemName} fill className="object-cover" />
+                            <img src={item.imageUrl} alt={item.itemName} className="h-full w-full object-cover" />
                           ) : (
                             <div className="h-full w-full bg-cream" />
                           )}
@@ -230,19 +316,19 @@ export function CheckoutClient() {
           </section>
         </div>
 
-        <aside className="rounded-[32px] bg-ink p-8 text-cream shadow-soft">
+        <aside className="rounded-[32px] bg-ink p-5 text-cream shadow-soft sm:p-6 lg:p-8">
           <p className="text-sm uppercase tracking-[0.22em] text-cream/60">Combined order summary</p>
           <h2 className="mt-4 text-3xl font-semibold">Proceed to one checkout</h2>
           <div className="mt-6 space-y-6">
             {groupedItems.map((group) => (
               <div key={group.restaurantName} className="rounded-3xl bg-white/8 p-4">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <p className="font-semibold">{group.restaurantName}</p>
                   <span className="text-sm text-cream/65">{formatCurrency(group.deliveryFee)} delivery</span>
                 </div>
                 <div className="mt-4 space-y-3 text-sm">
                   {group.items.map((item) => (
-                    <div key={item.menuItemId} className="flex items-center justify-between gap-4">
+                    <div key={item.menuItemId} className="flex flex-wrap items-center justify-between gap-4">
                       <div>
                         <p>{item.itemName}</p>
                         <p className="text-cream/60">{item.quantity} item(s)</p>
@@ -288,10 +374,10 @@ export function CheckoutClient() {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto max-w-7xl px-6 py-12">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">Checkout</p>
-        <h1 className="mt-2 font-serif text-5xl text-ink">Review the foods you added to your cart</h1>
+        <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Review the foods you added to your cart</h1>
       </div>
       {children}
     </main>

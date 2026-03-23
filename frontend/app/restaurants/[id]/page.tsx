@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency, getRestaurant } from "@/lib/api";
 
@@ -11,11 +10,15 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
   const restaurant = await getRestaurant(id);
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-12">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
       <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">{restaurant.cuisine}</p>
-          <h1 className="mt-3 font-serif text-5xl text-ink">{restaurant.name}</h1>
+          {restaurant.brandName ? <p className="mt-3 text-lg font-semibold text-ink/65">{restaurant.brandName}</p> : null}
+          <h1 className="mt-3 font-serif text-4xl text-ink sm:text-5xl">{restaurant.name}</h1>
+          {restaurant.brandName && restaurant.brandName !== restaurant.name ? (
+            <p className="mt-3 text-sm uppercase tracking-[0.18em] text-olive">Branch location</p>
+          ) : null}
           <p className="mt-5 max-w-2xl text-lg leading-8 text-ink/72">{restaurant.description}</p>
           <div className="mt-6 flex flex-wrap gap-4 text-sm text-ink/70">
             <span className="rounded-full bg-white px-4 py-2 shadow-soft">{restaurant.address}</span>
@@ -28,9 +31,9 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
           </div>
         </div>
 
-        <div className="rounded-[32px] bg-ink p-8 text-cream shadow-soft">
+        <div className="rounded-[32px] bg-ink p-5 text-cream shadow-soft sm:p-6 lg:p-8">
           <p className="text-sm uppercase tracking-[0.18em] text-cream/60">Customer signal</p>
-          <div className="mt-6 grid grid-cols-2 gap-4">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-3xl bg-white/8 p-5">
               <p className="text-sm text-cream/70">Average rating</p>
               <h2 className="mt-3 text-4xl font-semibold">{restaurant.averageRating.toFixed(1)}</h2>
@@ -58,7 +61,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
                 <div className="grid gap-5 md:grid-cols-[220px_1fr]">
                   <div className="relative min-h-[200px]">
                     {item.imageUrl ? (
-                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                      <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
                     ) : (
                       <div className="h-full w-full bg-cream" />
                     )}

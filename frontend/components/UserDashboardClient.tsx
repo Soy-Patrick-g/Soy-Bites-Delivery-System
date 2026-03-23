@@ -90,8 +90,8 @@ export function UserDashboardClient() {
     <Shell>
       {error ? <p className="mb-6 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
-      <section className="rounded-[32px] border border-white/50 bg-white/90 p-8 shadow-soft">
-        <div className="flex items-end justify-between gap-4">
+      <section className="rounded-[32px] border border-white/50 bg-white/90 p-5 shadow-soft sm:p-6 lg:p-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-olive">Order history</p>
             <h2 className="mt-2 text-3xl font-semibold text-ink">Everything you’ve ordered</h2>
@@ -163,10 +163,10 @@ export function UserDashboardClient() {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto max-w-7xl px-6 py-12">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">Dashboard</p>
-        <h1 className="mt-2 font-serif text-5xl text-ink">Your account, orders, and next steps</h1>
+        <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Your account, orders, and next steps</h1>
       </div>
       {children}
     </main>
@@ -175,7 +175,7 @@ function Shell({ children }: { children: ReactNode }) {
 
 function GateCard(props: { title: string; body: string; href: string; action: string }) {
   return (
-    <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
+    <div className="rounded-[32px] border border-ink/10 bg-white/90 p-6 shadow-soft sm:p-8">
       <h2 className="text-2xl font-semibold text-ink">{props.title}</h2>
       <p className="mt-4 max-w-xl text-sm leading-7 text-ink/70">{props.body}</p>
       <Link

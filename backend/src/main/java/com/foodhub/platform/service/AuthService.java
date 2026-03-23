@@ -20,17 +20,23 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final UserSessionService userSessionService;
+    private final AuditLogService auditLogService;
 
     public AuthService(AppUserRepository appUserRepository,
                        PasswordEncoder passwordEncoder,
                        AuthenticationManager authenticationManager,
                        JwtService jwtService,
-                       CustomUserDetailsService userDetailsService) {
+                       CustomUserDetailsService userDetailsService,
+                       UserSessionService userSessionService,
+                       AuditLogService auditLogService) {
         this.appUserRepository = appUserRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.userSessionService = userSessionService;
+        this.auditLogService = auditLogService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -47,11 +53,14 @@ public class AuthService {
         user.setLongitude(request.longitude());
         appUserRepository.save(user);
 
+        var session = userSessionService.createSession(user, jwtService.calculateExpirationInstant());
         String token = jwtService.generateToken(
                 userDetailsService.loadUserByUsername(user.getEmail()),
-                user.getRole().name()
+                user.getRole().name(),
+                session.getSessionId()
         );
-        return new AuthResponse(token, user.getFullName(), user.getEmail(), user.getRole());
+        auditLogService.log(user.getEmail(), user.getRole(), "AUTH_REGISTER", "USER", String.valueOf(user.getId()), "User self-registered");
+        return new AuthResponse(token, user.getFullName(), user.getEmail(), user.getRole(), session.getExpiresAt());
     }
 
     public AuthResponse login(AuthRequest request) {
@@ -62,11 +71,25 @@ public class AuthService {
         AppUser user = appUserRepository.findByEmailIgnoreCase(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
+        var session = userSessionService.createSession(user, jwtService.calculateExpirationInstant());
         String token = jwtService.generateToken(
                 userDetailsService.loadUserByUsername(user.getEmail()),
-                user.getRole().name()
+                user.getRole().name(),
+                session.getSessionId()
         );
-        return new AuthResponse(token, user.getFullName(), user.getEmail(), user.getRole());
+        auditLogService.log(user.getEmail(), user.getRole(), "AUTH_LOGIN", "USER", String.valueOf(user.getId()), "User signed in");
+        return new AuthResponse(token, user.getFullName(), user.getEmail(), user.getRole(), session.getExpiresAt());
+    }
+
+    public void logout(String authHeader, String requesterEmail) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return;
+        }
+
+        AppUser user = appUserRepository.findByEmailIgnoreCase(requesterEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        String sessionId = jwtService.extractSessionId(authHeader.substring(7));
+        userSessionService.revokeSession(sessionId);
+        auditLogService.log(user.getEmail(), user.getRole(), "AUTH_LOGOUT", "SESSION", sessionId, "User signed out");
     }
 }
-

@@ -1,6 +1,7 @@
 package com.foodhub.platform.security;
 
 import com.foodhub.platform.service.JwtService;
+import com.foodhub.platform.service.UserSessionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,9 +23,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
+    private final UserSessionService userSessionService;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserSessionService userSessionService) {
         this.jwtService = jwtService;
+        this.userSessionService = userSessionService;
     }
 
     @Override
@@ -41,11 +44,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String username = jwtService.extractUsername(token);
             String role = jwtService.extractRole(token);
+            String sessionId = jwtService.extractSessionId(token);
 
             if (username != null
                     && role != null
+                    && sessionId != null
                     && SecurityContextHolder.getContext().getAuthentication() == null
-                    && jwtService.isTokenValid(token)) {
+                    && jwtService.isTokenValid(token)
+                    && userSessionService.validateAndTouch(sessionId, username)) {
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                         username,
                         null,

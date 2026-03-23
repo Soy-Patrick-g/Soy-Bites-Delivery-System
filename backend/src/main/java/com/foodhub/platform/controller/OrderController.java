@@ -27,23 +27,23 @@ public class OrderController {
     }
 
     @PostMapping
-    public OrderResponse placeOrder(@Valid @RequestBody PlaceOrderRequest request) {
-        return orderService.placeOrder(request);
+    public OrderResponse placeOrder(@Valid @RequestBody PlaceOrderRequest request, Authentication authentication) {
+        return orderService.placeOrder(authentication.getName(), request);
     }
 
     @PostMapping("/batch")
-    public OrderBatchResponse placeGroupOrder(@Valid @RequestBody PlaceGroupOrderRequest request) {
-        return orderService.placeGroupOrder(request);
+    public OrderBatchResponse placeGroupOrder(@Valid @RequestBody PlaceGroupOrderRequest request, Authentication authentication) {
+        return orderService.placeGroupOrder(authentication.getName(), request);
     }
 
     @GetMapping("/{id}")
-    public OrderResponse getOrder(@PathVariable Long id) {
-        return orderService.getOrder(id);
+    public OrderResponse getOrder(@PathVariable Long id, Authentication authentication) {
+        return orderService.getOrder(id, authentication.getName());
     }
 
     @GetMapping("/{id}/batch")
-    public OrderBatchResponse getOrderBatch(@PathVariable Long id) {
-        return orderService.getOrderBatch(id);
+    public OrderBatchResponse getOrderBatch(@PathVariable Long id, Authentication authentication) {
+        return orderService.getOrderBatch(id, authentication.getName());
     }
 
     @GetMapping("/history")

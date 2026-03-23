@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { ReceiptActions } from "@/components/ReceiptActions";
 import { formatCurrency, getOrderBatch } from "@/lib/api";
 
@@ -7,7 +9,14 @@ type ReceiptPageProps = {
 
 export default async function ReceiptPage({ params }: ReceiptPageProps) {
   const { id } = await params;
-  const batch = await getOrderBatch(id);
+  const cookieStore = await cookies();
+  const token = cookieStore.get("foodhub_token")?.value;
+
+  if (!token) {
+    redirect(`/login?redirect=${encodeURIComponent(`/orders/${id}/receipt`)}`);
+  }
+
+  const batch = await getOrderBatch(id, token);
   const leadOrder = batch.orders[0];
   const createdAt = batch.orders
     .map((order) => new Date(order.createdAt).getTime())

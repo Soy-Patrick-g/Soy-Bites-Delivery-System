@@ -15,6 +15,20 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function defaultRouteForRole(role: string) {
+    switch (role) {
+      case "ADMIN":
+        return "/admin";
+      case "RESTAURANT":
+        return "/restaurant/dashboard";
+      case "DELIVERY":
+        return "/delivery/dashboard";
+      case "USER":
+      default:
+        return "/";
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -28,7 +42,7 @@ export default function LoginPage() {
       if (redirect?.startsWith("/")) {
         router.push(redirect);
       } else {
-        router.push("/");
+        router.push(defaultRouteForRole(session.role));
       }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to sign in");

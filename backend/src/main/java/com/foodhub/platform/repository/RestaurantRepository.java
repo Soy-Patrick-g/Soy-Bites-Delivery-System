@@ -8,4 +8,5 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
     List<Restaurant> findByActiveTrue();
     List<Restaurant> findByActiveTrueAndCityIgnoreCase(String city);
     List<Restaurant> findByOwnerId(Long ownerId);
+    List<Restaurant> findByOwnerIdAndBrandNameIgnoreCase(Long ownerId, String brandName);
 }

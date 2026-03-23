@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -42,12 +43,33 @@ public class PaymentTransaction {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
+    @Column(nullable = false, precision = 10, scale = 2, columnDefinition = "numeric(10,2) default 0")
+    private BigDecimal refundedAmount = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 10, scale = 2, columnDefinition = "numeric(10,2) default 0")
+    private BigDecimal chargebackAmount = BigDecimal.ZERO;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
     @PrePersist
     void onCreate() {
+        applyDefaults();
         createdAt = Instant.now();
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        applyDefaults();
+    }
+
+    private void applyDefaults() {
+        if (refundedAmount == null) {
+            refundedAmount = BigDecimal.ZERO;
+        }
+        if (chargebackAmount == null) {
+            chargebackAmount = BigDecimal.ZERO;
+        }
     }
 
     public Long getId() {
@@ -108,5 +130,21 @@ public class PaymentTransaction {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public BigDecimal getRefundedAmount() {
+        return refundedAmount;
+    }
+
+    public void setRefundedAmount(BigDecimal refundedAmount) {
+        this.refundedAmount = refundedAmount;
+    }
+
+    public BigDecimal getChargebackAmount() {
+        return chargebackAmount;
+    }
+
+    public void setChargebackAmount(BigDecimal chargebackAmount) {
+        this.chargebackAmount = chargebackAmount;
     }
 }

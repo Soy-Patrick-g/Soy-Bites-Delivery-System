@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
@@ -31,6 +32,14 @@ public class JwtService {
         return extractClaim(token, claims -> claims.get("role", String.class));
     }
 
+    public String extractSessionId(String token) {
+        return extractClaim(token, claims -> claims.get("sid", String.class));
+    }
+
+    public Instant extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration).toInstant();
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> resolver) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -40,9 +49,10 @@ public class JwtService {
         return resolver.apply(claims);
     }
 
-    public String generateToken(UserDetails userDetails, String role) {
+    public String generateToken(UserDetails userDetails, String role, String sessionId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
+        claims.put("sid", sessionId);
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtExpirationMs);
 
@@ -53,6 +63,10 @@ public class JwtService {
                 .expiration(expiry)
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    public Instant calculateExpirationInstant() {
+        return Instant.now().plusMillis(jwtExpirationMs);
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {

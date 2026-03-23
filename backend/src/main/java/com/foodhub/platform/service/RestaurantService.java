@@ -36,19 +36,22 @@ public class RestaurantService {
     private final AppUserRepository appUserRepository;
     private final OrderRepository orderRepository;
     private final GeoService geoService;
+    private final AuditLogService auditLogService;
 
     public RestaurantService(RestaurantRepository restaurantRepository,
                              MenuItemRepository menuItemRepository,
                              ReviewRepository reviewRepository,
                              AppUserRepository appUserRepository,
                              OrderRepository orderRepository,
-                             GeoService geoService) {
+                             GeoService geoService,
+                             AuditLogService auditLogService) {
         this.restaurantRepository = restaurantRepository;
         this.menuItemRepository = menuItemRepository;
         this.reviewRepository = reviewRepository;
         this.appUserRepository = appUserRepository;
         this.orderRepository = orderRepository;
         this.geoService = geoService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -92,6 +95,7 @@ public class RestaurantService {
         return new RestaurantDetailResponse(
                 restaurant.getId(),
                 restaurant.getName(),
+                restaurant.getBrandName(),
                 restaurant.getDescription(),
                 restaurant.getCuisine(),
                 restaurant.getAddress(),
@@ -134,6 +138,7 @@ public class RestaurantService {
         Review saved = reviewRepository.save(review);
 
         recalculateAverageRating(restaurant);
+        auditLogService.log(customer.getEmail(), customer.getRole(), "REVIEW_CREATE", "RESTAURANT", String.valueOf(restaurant.getId()), "Review submitted for order " + order.getId());
 
         return new ReviewResponse(
                 saved.getId(),
@@ -164,15 +169,17 @@ public class RestaurantService {
         return new RestaurantSummaryResponse(
                 restaurant.getId(),
                 restaurant.getName(),
+                restaurant.getBrandName(),
                 restaurant.getDescription(),
                 restaurant.getCuisine(),
                 restaurant.getCity(),
                 restaurant.getAddress(),
+                restaurant.getLatitude(),
+                restaurant.getLongitude(),
                 restaurant.getAverageRating(),
                 distance == null ? null : BigDecimal.valueOf(distance).setScale(2, RoundingMode.HALF_UP).doubleValue(),
                 fee,
-                menuItemRepository.findByRestaurantIdAndAvailableTrue(restaurant.getId()).stream()
-                        .limit(3)
+                menuItemRepository.findTop3ByRestaurantIdAndAvailableTrueOrderByIdDesc(restaurant.getId()).stream()
                         .map(item -> new RestaurantPreviewItemResponse(
                                 item.getId(),
                                 item.getName(),
@@ -190,6 +197,7 @@ public class RestaurantService {
                 item.getDescription(),
                 item.getPrice(),
                 item.getImageUrl(),
+                item.isAvailable(),
                 item.isVegetarian(),
                 item.isSpicy()
         );
