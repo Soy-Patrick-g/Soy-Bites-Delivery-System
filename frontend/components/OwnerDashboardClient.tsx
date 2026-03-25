@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { advanceOwnerOrder, formatCurrency, getOwnerDashboard } from "@/lib/api";
 import { Order, OwnerDashboard } from "@/lib/types";
 
@@ -12,21 +13,8 @@ export function OwnerDashboardClient() {
   const [dashboard, setDashboard] = useState<OwnerDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showSlowLoadNotice, setShowSlowLoadNotice] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!isLoading) {
-      setShowSlowLoadNotice(false);
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setShowSlowLoadNotice(true);
-    }, 8000);
-
-    return () => window.clearTimeout(timer);
-  }, [isLoading]);
+  const showSlowLoadNotice = useSlowLoadNotice(isLoading);
 
   useEffect(() => {
     async function load() {

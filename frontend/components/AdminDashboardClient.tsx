@@ -5,18 +5,26 @@ import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { DashboardStat } from "@/components/DashboardStat";
+import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import {
+  deleteAdminUser,
   exportAdminTransactionsCsv,
   formatCurrency,
   getAdminAuditLogs,
+  getAdminRestaurants,
   getAdminSessions,
   getAdminTransactions,
   getAdminUsers,
   getDashboard
+  ,
+  updateAdminRestaurantStatus,
+  updateAdminRestaurantVerification,
+  updateAdminUserStatus
 } from "@/lib/api";
 import {
   AdminAuditLog,
   AdminDashboard,
+  AdminRestaurant,
   AdminSessionRecord,
   AdminTrendPoint,
   AdminTransaction,
@@ -44,16 +52,25 @@ export function AdminDashboardClient() {
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
   const [sessions, setSessions] = useState<AdminSessionRecord[]>([]);
   const [users, setUsers] = useState<AdminUserInsight[]>([]);
+  const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
   const [draftFilters, setDraftFilters] = useState<AdminTransactionFilters>(DEFAULT_FILTERS);
   const [filters, setFilters] = useState<AdminTransactionFilters>(DEFAULT_FILTERS);
   const [userSearchDraft, setUserSearchDraft] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [restaurantSearchDraft, setRestaurantSearchDraft] = useState("");
+  const [restaurantSearch, setRestaurantSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [isUsersLoading, setIsUsersLoading] = useState(true);
+  const [isRestaurantsLoading, setIsRestaurantsLoading] = useState(true);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [busyActionKey, setBusyActionKey] = useState<string | null>(null);
+  const showDashboardSlowLoadNotice = useSlowLoadNotice(isLoading);
+  const showTransactionsSlowLoadNotice = useSlowLoadNotice(isTransactionsLoading);
+  const showUsersSlowLoadNotice = useSlowLoadNotice(isUsersLoading);
+  const showRestaurantsSlowLoadNotice = useSlowLoadNotice(isRestaurantsLoading);
 
   useEffect(() => {
     if (!isReady || !session || session.role !== "ADMIN") {
@@ -68,12 +85,13 @@ export function AdminDashboardClient() {
       try {
         setIsLoading(true);
         setError(null);
-        const [nextDashboard, nextTransactions, nextAuditLogs, nextSessions, nextUsers] = await Promise.all([
+        const [nextDashboard, nextTransactions, nextAuditLogs, nextSessions, nextUsers, nextRestaurants] = await Promise.all([
           getDashboard(adminToken),
           getAdminTransactions(adminToken, filters),
           getAdminAuditLogs(adminToken),
           getAdminSessions(adminToken),
-          getAdminUsers(adminToken, userSearch)
+          getAdminUsers(adminToken, userSearch),
+          getAdminRestaurants(adminToken, restaurantSearch)
         ]);
 
         if (isCancelled) {
@@ -85,6 +103,7 @@ export function AdminDashboardClient() {
         setAuditLogs(nextAuditLogs);
         setSessions(nextSessions);
         setUsers(nextUsers);
+        setRestaurants(nextRestaurants);
       } catch (nextError) {
         if (!isCancelled) {
           setError(nextError instanceof Error ? nextError.message : "Unable to load admin dashboard");
@@ -94,6 +113,7 @@ export function AdminDashboardClient() {
           setIsLoading(false);
           setIsTransactionsLoading(false);
           setIsUsersLoading(false);
+          setIsRestaurantsLoading(false);
         }
       }
     }
@@ -107,7 +127,7 @@ export function AdminDashboardClient() {
       isCancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [filters, isReady, refreshKey, session, userSearch]);
+  }, [filters, isReady, refreshKey, restaurantSearch, session, userSearch]);
 
   async function handleTransactionFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -123,6 +143,84 @@ export function AdminDashboardClient() {
     event.preventDefault();
     setIsUsersLoading(true);
     setUserSearch(userSearchDraft.trim());
+  }
+
+  async function handleRestaurantSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsRestaurantsLoading(true);
+    setRestaurantSearch(restaurantSearchDraft.trim());
+  }
+
+  async function handleToggleUserActive(user: AdminUserInsight) {
+    if (!session) {
+      return;
+    }
+
+    try {
+      setBusyActionKey(`user-status-${user.id}`);
+      setError(null);
+      const updated = await updateAdminUserStatus(session.token, user.id, !user.active);
+      setUsers((current) => current.map((entry) => (entry.id === user.id ? updated : entry)));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to update user");
+    } finally {
+      setBusyActionKey(null);
+    }
+  }
+
+  async function handleDeleteUser(user: AdminUserInsight) {
+    if (!session) {
+      return;
+    }
+
+    if (!window.confirm(`Delete ${user.email}? This only works for accounts without platform history.`)) {
+      return;
+    }
+
+    try {
+      setBusyActionKey(`user-delete-${user.id}`);
+      setError(null);
+      await deleteAdminUser(session.token, user.id);
+      setUsers((current) => current.filter((entry) => entry.id !== user.id));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to delete user");
+    } finally {
+      setBusyActionKey(null);
+    }
+  }
+
+  async function handleToggleRestaurantVerification(restaurant: AdminRestaurant) {
+    if (!session) {
+      return;
+    }
+
+    try {
+      setBusyActionKey(`restaurant-verify-${restaurant.id}`);
+      setError(null);
+      const updated = await updateAdminRestaurantVerification(session.token, restaurant.id, !restaurant.verified);
+      setRestaurants((current) => current.map((entry) => (entry.id === restaurant.id ? updated : entry)));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to update restaurant verification");
+    } finally {
+      setBusyActionKey(null);
+    }
+  }
+
+  async function handleToggleRestaurantActive(restaurant: AdminRestaurant) {
+    if (!session) {
+      return;
+    }
+
+    try {
+      setBusyActionKey(`restaurant-status-${restaurant.id}`);
+      setError(null);
+      const updated = await updateAdminRestaurantStatus(session.token, restaurant.id, !restaurant.active);
+      setRestaurants((current) => current.map((entry) => (entry.id === restaurant.id ? updated : entry)));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to update restaurant status");
+    } finally {
+      setBusyActionKey(null);
+    }
   }
 
   async function handleExportCsv() {
@@ -206,7 +304,18 @@ export function AdminDashboardClient() {
   }
 
   if (!isReady || isLoading) {
-    return <Shell><p className="text-sm text-cream/70">Loading admin dashboard...</p></Shell>;
+    return (
+      <Shell>
+        <div className="space-y-3">
+          <p className="text-sm text-cream/70">Loading admin dashboard...</p>
+          {showDashboardSlowLoadNotice ? (
+            <p className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm text-cream/72">
+              This is taking longer than usual, but the admin dashboard is still loading.
+            </p>
+          ) : null}
+        </div>
+      </Shell>
+    );
   }
 
   if (!session) {
@@ -435,7 +544,10 @@ export function AdminDashboardClient() {
             <tbody>
               {isTransactionsLoading ? (
                 <tr>
-                  <td className="px-3 py-4 text-cream/70" colSpan={7}>Loading transactions...</td>
+                  <td className="px-3 py-4 text-cream/70" colSpan={7}>
+                    Loading transactions...
+                    {showTransactionsSlowLoadNotice ? " This is taking longer than usual, but the request is still running." : ""}
+                  </td>
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
@@ -490,7 +602,10 @@ export function AdminDashboardClient() {
 
           <div className="mt-6 grid gap-4">
             {isUsersLoading ? (
-              <p className="text-sm text-cream/70">Loading users...</p>
+              <p className="text-sm text-cream/70">
+                Loading users...
+                {showUsersSlowLoadNotice ? " This is taking longer than usual, but the request is still running." : ""}
+              </p>
             ) : (
               users.map((user) => (
                 <div key={user.id} className="rounded-3xl border border-white/10 bg-white/8 p-5">
@@ -500,6 +615,7 @@ export function AdminDashboardClient() {
                       <p className="text-sm text-cream/70">{user.email}</p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Badge tone="neutral">{user.role}</Badge>
+                        <Badge tone={user.active ? "green" : "red"}>{user.active ? "Active" : "Suspended"}</Badge>
                         <Badge tone={user.kycStatus === "VERIFIED" ? "green" : "amber"}>{user.kycStatus}</Badge>
                         {user.riskFlagged ? <Badge tone="red">Flagged</Badge> : null}
                       </div>
@@ -508,6 +624,28 @@ export function AdminDashboardClient() {
                       <div>Balance: {formatCurrency(user.balance)}</div>
                       <div className="mt-1">Transactions: {user.transactionCount}</div>
                     </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => void handleToggleUserActive(user)}
+                      disabled={busyActionKey === `user-status-${user.id}`}
+                      className="rounded-full bg-ember px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    >
+                      {busyActionKey === `user-status-${user.id}`
+                        ? "Updating..."
+                        : user.active
+                          ? "Suspend account"
+                          : "Reactivate account"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteUser(user)}
+                      disabled={busyActionKey === `user-delete-${user.id}` || user.email === session.email}
+                      className="rounded-full border border-red-300/25 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-100 disabled:opacity-50"
+                    >
+                      {busyActionKey === `user-delete-${user.id}` ? "Deleting..." : "Delete account"}
+                    </button>
                   </div>
                   {user.alertNote ? (
                     <p className="mt-4 rounded-2xl border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
@@ -579,6 +717,82 @@ export function AdminDashboardClient() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="mt-10 rounded-[36px] border border-white/10 bg-white/6 p-5 shadow-soft sm:p-8">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.18em] text-citrus">Restaurant controls</p>
+            <h2 className="mt-2 text-3xl font-semibold">Verify, unverify, activate, or deactivate restaurants</h2>
+          </div>
+          <form className="flex gap-3" onSubmit={handleRestaurantSearchSubmit}>
+            <input
+              value={restaurantSearchDraft}
+              onChange={(event) => setRestaurantSearchDraft(event.target.value)}
+              placeholder="Search restaurants"
+              className={`${FIELD_CLASS} min-w-[240px]`}
+            />
+            <button type="submit" className="inline-flex rounded-full bg-ember px-5 py-2 text-sm font-semibold text-white">
+              Search
+            </button>
+          </form>
+        </div>
+
+        <div className="mt-6 grid gap-4">
+          {isRestaurantsLoading ? (
+            <p className="text-sm text-cream/70">
+              Loading restaurants...
+              {showRestaurantsSlowLoadNotice ? " This is taking longer than usual, but the request is still running." : ""}
+            </p>
+          ) : restaurants.length === 0 ? (
+            <p className="text-sm text-cream/70">No restaurants matched the current search.</p>
+          ) : (
+            restaurants.map((restaurant) => (
+              <div key={restaurant.id} className="rounded-3xl border border-white/10 bg-white/8 p-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-lg font-semibold">{restaurant.brandName ? `${restaurant.brandName} · ${restaurant.name}` : restaurant.name}</p>
+                    <p className="text-sm text-cream/70">{restaurant.ownerEmail ?? "No owner email"}{restaurant.ownerName ? ` · ${restaurant.ownerName}` : ""}</p>
+                    <p className="mt-2 text-sm text-cream/68">{restaurant.address}, {restaurant.city}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Badge tone={restaurant.active ? "green" : "red"}>{restaurant.active ? "Active" : "Inactive"}</Badge>
+                      <Badge tone={restaurant.verified ? "green" : "amber"}>{restaurant.verified ? "Verified" : "Unverified"}</Badge>
+                    </div>
+                  </div>
+                  <div className="text-sm text-cream/65">
+                    Created {formatDateTime(restaurant.createdAt)}
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleRestaurantVerification(restaurant)}
+                    disabled={busyActionKey === `restaurant-verify-${restaurant.id}`}
+                    className="rounded-full bg-citrus px-4 py-2 text-sm font-semibold text-ink disabled:opacity-60"
+                  >
+                    {busyActionKey === `restaurant-verify-${restaurant.id}`
+                      ? "Updating..."
+                      : restaurant.verified
+                        ? "Set unverified"
+                        : "Set verified"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleRestaurantActive(restaurant)}
+                    disabled={busyActionKey === `restaurant-status-${restaurant.id}`}
+                    className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-cream disabled:opacity-60"
+                  >
+                    {busyActionKey === `restaurant-status-${restaurant.id}`
+                      ? "Updating..."
+                      : restaurant.active
+                        ? "Deactivate restaurant"
+                        : "Reactivate restaurant"}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
 

@@ -2,12 +2,17 @@ package com.foodhub.platform.controller;
 
 import com.foodhub.platform.dto.AdminAuditLogResponse;
 import com.foodhub.platform.dto.AdminDashboardResponse;
+import com.foodhub.platform.dto.AdminRestaurantResponse;
 import com.foodhub.platform.dto.AdminSessionResponse;
 import com.foodhub.platform.dto.AdminTransactionResponse;
 import com.foodhub.platform.dto.AdminUserInsightResponse;
 import com.foodhub.platform.dto.OrderResponse;
+import com.foodhub.platform.dto.UpdateAccountStatusRequest;
+import com.foodhub.platform.dto.UpdateRestaurantStatusRequest;
+import com.foodhub.platform.dto.UpdateRestaurantVerificationRequest;
 import com.foodhub.platform.service.AdminDashboardService;
 import com.foodhub.platform.service.OrderService;
+import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -15,9 +20,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -80,6 +87,37 @@ public class AdminController {
     @GetMapping("/users")
     public List<AdminUserInsightResponse> users(@RequestParam(required = false) String search) {
         return adminDashboardService.getUserInsights(search);
+    }
+
+    @PatchMapping("/users/{userId}/status")
+    public AdminUserInsightResponse updateUserStatus(@PathVariable Long userId,
+                                                     @Valid @RequestBody UpdateAccountStatusRequest request,
+                                                     Authentication authentication) {
+        return adminDashboardService.updateUserActiveStatus(userId, request.active(), authentication.getName());
+    }
+
+    @DeleteMapping("/users/{userId}")
+    public void deleteUser(@PathVariable Long userId, Authentication authentication) {
+        adminDashboardService.deleteUser(userId, authentication.getName());
+    }
+
+    @GetMapping("/restaurants")
+    public List<AdminRestaurantResponse> restaurants(@RequestParam(required = false) String search) {
+        return adminDashboardService.getRestaurants(search);
+    }
+
+    @PatchMapping("/restaurants/{restaurantId}/verification")
+    public AdminRestaurantResponse updateRestaurantVerification(@PathVariable Long restaurantId,
+                                                               @Valid @RequestBody UpdateRestaurantVerificationRequest request,
+                                                               Authentication authentication) {
+        return adminDashboardService.updateRestaurantVerification(restaurantId, request.verified(), authentication.getName());
+    }
+
+    @PatchMapping("/restaurants/{restaurantId}/status")
+    public AdminRestaurantResponse updateRestaurantStatus(@PathVariable Long restaurantId,
+                                                          @Valid @RequestBody UpdateRestaurantStatusRequest request,
+                                                          Authentication authentication) {
+        return adminDashboardService.updateRestaurantActiveStatus(restaurantId, request.active(), authentication.getName());
     }
 
     @PatchMapping("/orders/{orderId}/advance")

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { verifyPayment } from "@/lib/api";
 import { Order } from "@/lib/types";
 
@@ -12,6 +13,7 @@ export default function CheckoutCallbackPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const showSlowLoadNotice = useSlowLoadNotice(isLoading);
 
   useEffect(() => {
     async function confirmPayment() {
@@ -48,7 +50,14 @@ export default function CheckoutCallbackPage() {
 
       <section className="mt-8 rounded-[32px] border border-white/50 bg-white/90 p-8 shadow-soft">
         {isLoading ? (
-          <p className="text-sm text-ink/70">Verifying payment...</p>
+          <div className="space-y-3">
+            <p className="text-sm text-ink/70">Verifying payment...</p>
+            {showSlowLoadNotice ? (
+              <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
+                This is taking longer than usual, but payment verification is still running.
+              </p>
+            ) : null}
+          </div>
         ) : error ? (
           <>
             <p className="rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p>

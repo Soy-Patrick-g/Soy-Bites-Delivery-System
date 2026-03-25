@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { formatCurrency } from "@/lib/api";
-import type { MapStop } from "@/components/LocationMap";
+import type { MapRouteLine, MapStop } from "@/components/LocationMap";
 
 type LocationMapClientProps = {
   restaurants: MapStop[];
   deliveryPoint?: MapStop;
+  riderPoint?: MapStop;
+  routeLines?: MapRouteLine[];
+  onMapClick?: (latitude: number, longitude: number) => void;
   heightClassName?: string;
 };
 
@@ -16,11 +19,16 @@ const ACCRA_CENTER: [number, number] = [5.6037, -0.187];
 export function LocationMapClient({
   restaurants,
   deliveryPoint,
+  riderPoint,
+  routeLines,
+  onMapClick,
   heightClassName = "h-[360px]"
 }: LocationMapClientProps) {
   const allPoints = [
     ...restaurants.map((point) => [point.latitude, point.longitude] as [number, number]),
-    ...(deliveryPoint ? [[deliveryPoint.latitude, deliveryPoint.longitude] as [number, number]] : [])
+    ...(deliveryPoint ? [[deliveryPoint.latitude, deliveryPoint.longitude] as [number, number]] : []),
+    ...(riderPoint ? [[riderPoint.latitude, riderPoint.longitude] as [number, number]] : []),
+    ...(routeLines?.flatMap((route) => route.points) ?? [])
   ];
 
   return (
@@ -32,6 +40,7 @@ export function LocationMapClient({
         />
 
         {allPoints.length ? <FitToPoints points={allPoints} /> : null}
+        {onMapClick ? <MapClickHandler onMapClick={onMapClick} /> : null}
 
         {restaurants.map((restaurant) => (
           <CircleMarker
@@ -66,7 +75,35 @@ export function LocationMapClient({
           </CircleMarker>
         ) : null}
 
-        {deliveryPoint
+        {riderPoint ? (
+          <CircleMarker
+            center={[riderPoint.latitude, riderPoint.longitude]}
+            radius={10}
+            pathOptions={{ color: "#2563eb", fillColor: "#60a5fa", fillOpacity: 0.95, weight: 2 }}
+          >
+            <Popup>
+              <div className="space-y-1 text-sm">
+                <p className="font-semibold">{riderPoint.label}</p>
+                {riderPoint.address ? <p>{riderPoint.address}</p> : null}
+              </div>
+            </Popup>
+          </CircleMarker>
+        ) : null}
+
+        {routeLines?.length
+          ? routeLines.map((route) => (
+              <Polyline
+                key={route.id}
+                positions={route.points}
+                pathOptions={{
+                  color: route.color ?? "#2563eb",
+                  dashArray: route.dashed ? "8 8" : undefined,
+                  weight: 4,
+                  opacity: 0.8
+                }}
+              />
+            ))
+          : deliveryPoint
           ? restaurants.map((restaurant) => (
               <Polyline
                 key={`route-${restaurant.id}`}
@@ -96,6 +133,16 @@ function FitToPoints({ points }: { points: [number, number][] }) {
       map.fitBounds(points, { padding: [32, 32] });
     }
   }, [map, points]);
+
+  return null;
+}
+
+function MapClickHandler({ onMapClick }: { onMapClick: (latitude: number, longitude: number) => void }) {
+  useMapEvents({
+    click(event) {
+      onMapClick(event.latlng.lat, event.latlng.lng);
+    }
+  });
 
   return null;
 }

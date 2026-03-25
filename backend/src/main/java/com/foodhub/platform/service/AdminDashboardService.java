@@ -2,6 +2,7 @@ package com.foodhub.platform.service;
 
 import com.foodhub.platform.dto.AdminAuditLogResponse;
 import com.foodhub.platform.dto.AdminDashboardResponse;
+import com.foodhub.platform.dto.AdminRestaurantResponse;
 import com.foodhub.platform.dto.AdminSessionResponse;
 import com.foodhub.platform.dto.AdminTransactionResponse;
 import com.foodhub.platform.dto.AdminTrendPointResponse;
@@ -12,6 +13,7 @@ import com.foodhub.platform.model.AppUser;
 import com.foodhub.platform.model.FoodOrder;
 import com.foodhub.platform.model.PaymentStatus;
 import com.foodhub.platform.model.PaymentTransaction;
+import com.foodhub.platform.model.Restaurant;
 import com.foodhub.platform.model.UserSession;
 import com.foodhub.platform.repository.AppUserRepository;
 import com.foodhub.platform.repository.AuditLogRepository;
@@ -30,8 +32,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AdminDashboardService {
@@ -47,6 +51,8 @@ public class AdminDashboardService {
     private final AppUserRepository appUserRepository;
     private final AuditLogRepository auditLogRepository;
     private final UserSessionRepository userSessionRepository;
+    private final UserSessionService userSessionService;
+    private final AuditLogService auditLogService;
 
     public AdminDashboardService(RestaurantRepository restaurantRepository,
                                  OrderRepository orderRepository,
@@ -55,7 +61,9 @@ public class AdminDashboardService {
                                  PaymentTransactionRepository paymentTransactionRepository,
                                  AppUserRepository appUserRepository,
                                  AuditLogRepository auditLogRepository,
-                                 UserSessionRepository userSessionRepository) {
+                                 UserSessionRepository userSessionRepository,
+                                 UserSessionService userSessionService,
+                                 AuditLogService auditLogService) {
         this.restaurantRepository = restaurantRepository;
         this.orderRepository = orderRepository;
         this.reviewRepository = reviewRepository;
@@ -64,6 +72,8 @@ public class AdminDashboardService {
         this.appUserRepository = appUserRepository;
         this.auditLogRepository = auditLogRepository;
         this.userSessionRepository = userSessionRepository;
+        this.userSessionService = userSessionService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -197,6 +207,90 @@ public class AdminDashboardService {
                 .sorted(Comparator.comparing(AppUser::getCreatedAt).reversed())
                 .map(user -> toUserInsight(user, transactions))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminRestaurantResponse> getRestaurants(String search) {
+        String normalizedSearch = search == null ? null : search.trim().toLowerCase(Locale.ROOT);
+
+        return restaurantRepository.findAll().stream()
+                .filter(restaurant -> matchesRestaurant(restaurant, normalizedSearch))
+                .sorted(Comparator.comparing(Restaurant::getCreatedAt).reversed())
+                .map(restaurant -> new AdminRestaurantResponse(
+                        restaurant.getId(),
+                        restaurant.getName(),
+                        restaurant.getBrandName(),
+                        restaurant.getOwner() == null ? null : restaurant.getOwner().getFullName(),
+                        restaurant.getOwner() == null ? null : restaurant.getOwner().getEmail(),
+                        restaurant.getCity(),
+                        restaurant.getAddress(),
+                        restaurant.isActive(),
+                        restaurant.isVerified(),
+                        restaurant.getCreatedAt()
+                ))
+                .toList();
+    }
+
+    @Transactional
+    public AdminUserInsightResponse updateUserActiveStatus(Long userId, boolean active, String adminEmail) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (user.getEmail().equalsIgnoreCase(adminEmail)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot change the status of your own admin account");
+        }
+
+        user.setActive(active);
+        AppUser saved = appUserRepository.save(user);
+        if (!active) {
+            userSessionService.revokeAllSessionsForUser(saved.getId());
+        }
+        auditLogService.log(adminEmail, com.foodhub.platform.model.UserRole.ADMIN, active ? "ADMIN_USER_REACTIVATE" : "ADMIN_USER_SUSPEND", "USER", String.valueOf(saved.getId()), saved.getEmail());
+        return toUserInsight(saved, paymentTransactionRepository.findAll());
+    }
+
+    @Transactional
+    public void deleteUser(Long userId, String adminEmail) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (user.getEmail().equalsIgnoreCase(adminEmail)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot delete your own admin account");
+        }
+
+        if (!restaurantRepository.findByOwnerId(userId).isEmpty()
+                || orderRepository.countByCustomerId(userId) > 0
+                || orderRepository.countByDeliveryPersonId(userId) > 0
+                || orderRepository.countByRestaurantOwnerId(userId) > 0
+                || reviewRepository.countByCustomerId(userId) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This account has platform history. Deactivate it instead of deleting it.");
+        }
+
+        userSessionRepository.deleteAll(userSessionRepository.findByUserIdOrderByCreatedAtDesc(userId));
+        appUserRepository.delete(user);
+        auditLogService.log(adminEmail, com.foodhub.platform.model.UserRole.ADMIN, "ADMIN_USER_DELETE", "USER", String.valueOf(userId), user.getEmail());
+    }
+
+    @Transactional
+    public AdminRestaurantResponse updateRestaurantVerification(Long restaurantId, boolean verified, String adminEmail) {
+        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Restaurant not found"));
+
+        restaurant.setVerified(verified);
+        Restaurant saved = restaurantRepository.save(restaurant);
+        auditLogService.log(adminEmail, com.foodhub.platform.model.UserRole.ADMIN, verified ? "ADMIN_RESTAURANT_VERIFY" : "ADMIN_RESTAURANT_UNVERIFY", "RESTAURANT", String.valueOf(saved.getId()), saved.getName());
+        return toAdminRestaurant(saved);
+    }
+
+    @Transactional
+    public AdminRestaurantResponse updateRestaurantActiveStatus(Long restaurantId, boolean active, String adminEmail) {
+        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Restaurant not found"));
+
+        restaurant.setActive(active);
+        Restaurant saved = restaurantRepository.save(restaurant);
+        auditLogService.log(adminEmail, com.foodhub.platform.model.UserRole.ADMIN, active ? "ADMIN_RESTAURANT_ACTIVATE" : "ADMIN_RESTAURANT_DEACTIVATE", "RESTAURANT", String.valueOf(saved.getId()), saved.getName());
+        return toAdminRestaurant(saved);
     }
 
     private List<AdminTransactionResponse> filterTransactions(List<PaymentTransaction> source,
@@ -338,6 +432,7 @@ public class AdminDashboardService {
                 user.getFullName(),
                 user.getEmail(),
                 user.getRole().name(),
+                user.isActive(),
                 user.getAccountBalance(),
                 user.getKycStatus().name(),
                 user.isRiskFlagged(),
@@ -345,6 +440,33 @@ public class AdminDashboardService {
                 relevantTransactions.size(),
                 previews
         );
+    }
+
+    private AdminRestaurantResponse toAdminRestaurant(Restaurant restaurant) {
+        return new AdminRestaurantResponse(
+                restaurant.getId(),
+                restaurant.getName(),
+                restaurant.getBrandName(),
+                restaurant.getOwner() == null ? null : restaurant.getOwner().getFullName(),
+                restaurant.getOwner() == null ? null : restaurant.getOwner().getEmail(),
+                restaurant.getCity(),
+                restaurant.getAddress(),
+                restaurant.isActive(),
+                restaurant.isVerified(),
+                restaurant.getCreatedAt()
+        );
+    }
+
+    private boolean matchesRestaurant(Restaurant restaurant, String search) {
+        if (search == null || search.isBlank()) {
+            return true;
+        }
+
+        return restaurant.getName().toLowerCase(Locale.ROOT).contains(search)
+                || (restaurant.getBrandName() != null && restaurant.getBrandName().toLowerCase(Locale.ROOT).contains(search))
+                || restaurant.getCity().toLowerCase(Locale.ROOT).contains(search)
+                || restaurant.getAddress().toLowerCase(Locale.ROOT).contains(search)
+                || (restaurant.getOwner() != null && restaurant.getOwner().getEmail().toLowerCase(Locale.ROOT).contains(search));
     }
 
     private boolean isRelevantToUser(AppUser user, PaymentTransaction transaction) {

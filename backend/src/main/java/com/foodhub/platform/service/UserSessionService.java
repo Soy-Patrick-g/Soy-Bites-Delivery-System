@@ -68,6 +68,11 @@ public class UserSessionService {
         if (!session.getUser().getEmail().equalsIgnoreCase(email)) {
             return false;
         }
+        if (!session.getUser().isActive()) {
+            session.setActive(false);
+            userSessionRepository.save(session);
+            return false;
+        }
         if (!session.getIpAddress().equals(requestMetadataService.getClientIpAddress())) {
             session.setActive(false);
             userSessionRepository.save(session);
@@ -89,6 +94,16 @@ public class UserSessionService {
         userSessionRepository.findBySessionId(sessionId).ifPresent(session -> {
             session.setActive(false);
             userSessionRepository.save(session);
+        });
+    }
+
+    @Transactional
+    public void revokeAllSessionsForUser(Long userId) {
+        userSessionRepository.findByUserIdOrderByCreatedAtDesc(userId).forEach(session -> {
+            if (session.isActive()) {
+                session.setActive(false);
+                userSessionRepository.save(session);
+            }
         });
     }
 

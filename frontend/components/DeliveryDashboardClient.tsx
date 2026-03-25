@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { LocationMap } from "@/components/LocationMap";
-import { claimDeliveryOrder, completeDeliveryOrder, formatCurrency, getDeliveryDashboard } from "@/lib/api";
-import { DeliveryDashboard, Order } from "@/lib/types";
+import type { MapRouteLine, MapStop } from "@/components/LocationMap";
+import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
+import { claimDeliveryOrder, completeDeliveryOrder, formatCurrency, getDeliveryDashboard, unclaimDeliveryOrder, updateDeliveryLocation } from "@/lib/api";
+import { getDrivingRoute } from "@/lib/location";
+import { DeliveryDashboard, DeliveryLocation, Order } from "@/lib/types";
 
 export function DeliveryDashboardClient() {
   const { isReady, session } = useAuth();
@@ -14,6 +17,14 @@ export function DeliveryDashboardClient() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [busyRouteKey, setBusyRouteKey] = useState<string | null>(null);
+  const [riderLocation, setRiderLocation] = useState<DeliveryLocation | null>(null);
+  const [routeLines, setRouteLines] = useState<MapRouteLine[]>([]);
+  const [routeEtaMinutes, setRouteEtaMinutes] = useState<number | null>(null);
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
+  const [locationTrackingError, setLocationTrackingError] = useState<string | null>(null);
+  const geolocationWatchIdRef = useRef<number | null>(null);
+  const lastLocationSyncAtRef = useRef<number>(0);
+  const showSlowLoadNotice = useSlowLoadNotice(isLoading);
 
   async function loadDashboard(token: string, showLoading = true) {
     try {
@@ -81,8 +92,207 @@ export function DeliveryDashboardClient() {
     }
   }
 
+  async function handleUnclaim(route: DeliveryRoute) {
+    if (!session || !dashboard) {
+      return;
+    }
+
+    try {
+      setBusyRouteKey(route.key);
+      setError(null);
+      await unclaimDeliveryOrder(session.token, route.primaryOrder.id);
+      await loadDashboard(session.token, false);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to unclaim order");
+    } finally {
+      setBusyRouteKey(null);
+    }
+  }
+
+  const activeAssignments = dashboard?.assignedOrders.filter((order) => order.status === "OUT_FOR_DELIVERY") ?? [];
+  const completedAssignments = dashboard?.assignedOrders.filter((order) => order.status === "DELIVERED") ?? [];
+  const availableRoutes = groupOrdersIntoRoutes(dashboard?.availableOrders ?? []);
+  const activeRoutes = groupOrdersIntoRoutes(activeAssignments);
+  const completedRoutes = groupOrdersIntoRoutes(completedAssignments);
+  const focusRoute = activeRoutes[0] ?? availableRoutes[0];
+  const routeRestaurants = focusRoute ? buildRouteRestaurantStops(focusRoute) : [];
+  const routeDeliveryPoint = focusRoute
+    ? {
+        id: `delivery-${focusRoute.primaryOrder.id}`,
+        label: focusRoute.isGrouped ? "Combined delivery drop-off" : "Current drop-off focus",
+        address: focusRoute.primaryOrder.deliveryAddress,
+        latitude: focusRoute.primaryOrder.deliveryLatitude,
+        longitude: focusRoute.primaryOrder.deliveryLongitude
+      }
+    : undefined;
+  const riderPoint = riderLocation
+    ? {
+        id: "rider-current-position",
+        label: "Live rider position",
+        latitude: riderLocation.latitude,
+        longitude: riderLocation.longitude
+      }
+    : undefined;
+
+  useEffect(() => {
+    const latitude = dashboard?.currentLatitude;
+    const longitude = dashboard?.currentLongitude;
+
+    if (latitude == null || longitude == null) {
+      return;
+    }
+
+    setRiderLocation((current) => {
+      if (
+        current
+        && Math.abs(current.latitude - latitude) < 0.00001
+        && Math.abs(current.longitude - longitude) < 0.00001
+      ) {
+        return current;
+      }
+
+      return {
+        latitude,
+        longitude
+      };
+    });
+  }, [dashboard?.currentLatitude, dashboard?.currentLongitude]);
+
+  useEffect(() => {
+    if (!session || session.role !== "DELIVERY" || !activeRoutes.length) {
+      if (geolocationWatchIdRef.current !== null && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
+      }
+      geolocationWatchIdRef.current = null;
+      setLocationTrackingError(null);
+      return;
+    }
+
+    if (!("geolocation" in navigator)) {
+      setLocationTrackingError("Live location is not supported in this browser.");
+      return;
+    }
+
+    setLocationTrackingError(null);
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const nextLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        };
+
+        setRiderLocation(nextLocation);
+        setLocationTrackingError(null);
+
+        const now = Date.now();
+        if (now - lastLocationSyncAtRef.current < 10000) {
+          return;
+        }
+
+        lastLocationSyncAtRef.current = now;
+        void updateDeliveryLocation(session.token, nextLocation).catch(() => {
+          setLocationTrackingError("Live rider location could not sync to the server.");
+        });
+      },
+      () => {
+        setLocationTrackingError("Enable location access to share your live rider position.");
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 15000
+      }
+    );
+
+    geolocationWatchIdRef.current = watchId;
+
+    return () => {
+      if (geolocationWatchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
+        geolocationWatchIdRef.current = null;
+      }
+    };
+  }, [activeRoutes.length, session]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRoute() {
+      if (!focusRoute) {
+        setRouteLines([]);
+        setRouteEtaMinutes(null);
+        setRouteDistanceKm(null);
+        return;
+      }
+
+      const deliveryPoint = {
+        latitude: focusRoute.primaryOrder.deliveryLatitude,
+        longitude: focusRoute.primaryOrder.deliveryLongitude
+      };
+      const restaurants = buildRouteRestaurantStops(focusRoute);
+      const stops = [
+        ...(riderLocation ? [riderLocation] : []),
+        ...restaurants.map((restaurant) => ({
+          latitude: restaurant.latitude,
+          longitude: restaurant.longitude
+        })),
+        deliveryPoint
+      ];
+
+      try {
+        const route = await getDrivingRoute(stops);
+        if (cancelled) {
+          return;
+        }
+
+        if (!route) {
+          setRouteLines([]);
+          setRouteEtaMinutes(null);
+          setRouteDistanceKm(null);
+          return;
+        }
+
+        setRouteLines([
+          {
+            id: `route-${focusRoute.key}`,
+            points: route.points as [number, number][],
+            color: "#2563eb"
+          }
+        ]);
+        setRouteEtaMinutes(route.durationMinutes);
+        setRouteDistanceKm(route.distanceKm);
+      } catch {
+        if (cancelled) {
+          return;
+        }
+
+        setRouteLines([]);
+        setRouteEtaMinutes(null);
+        setRouteDistanceKm(null);
+      }
+    }
+
+    void loadRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [focusRoute?.key, riderLocation?.latitude, riderLocation?.longitude]);
+
   if (!isReady || isLoading) {
-    return <Shell><p className="text-sm text-ink/70">Loading delivery dashboard...</p></Shell>;
+    return (
+      <Shell>
+        <div className="space-y-3">
+          <p className="text-sm text-ink/70">Loading delivery dashboard...</p>
+          {showSlowLoadNotice ? (
+            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
+              This is taking longer than usual, but the rider dashboard is still loading.
+            </p>
+          ) : null}
+        </div>
+      </Shell>
+    );
   }
 
   if (!session) {
@@ -119,13 +329,6 @@ export function DeliveryDashboardClient() {
     );
   }
 
-  const activeAssignments = dashboard?.assignedOrders.filter((order) => order.status === "OUT_FOR_DELIVERY") ?? [];
-  const completedAssignments = dashboard?.assignedOrders.filter((order) => order.status === "DELIVERED") ?? [];
-  const availableRoutes = groupOrdersIntoRoutes(dashboard?.availableOrders ?? []);
-  const activeRoutes = groupOrdersIntoRoutes(activeAssignments);
-  const completedRoutes = groupOrdersIntoRoutes(completedAssignments);
-  const focusRoute = activeRoutes[0] ?? availableRoutes[0];
-
   return (
     <Shell>
       {error ? <p className="mb-6 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p> : null}
@@ -147,34 +350,29 @@ export function DeliveryDashboardClient() {
               <h3 className="mt-2 text-3xl font-semibold">{activeRoutes.length}</h3>
               <p className="mt-3 text-sm text-cream/68">Routes currently assigned to you and still on the road.</p>
             </article>
+            <article className="rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Road ETA</p>
+              <h3 className="mt-2 text-3xl font-semibold">
+                {routeEtaMinutes != null ? `${Math.max(1, Math.round(routeEtaMinutes))} min` : "--"}
+              </h3>
+              <p className="mt-3 text-sm text-cream/68">
+                {routeDistanceKm != null
+                  ? `${routeDistanceKm.toFixed(1)} km across all pickup stops and the customer drop-off.`
+                  : "ETA appears when you have an active route and live road routing is available."}
+              </p>
+            </article>
           </div>
 
           <div className="mt-8">
             <p className="mb-3 text-xs uppercase tracking-[0.16em] text-citrus">Map view</p>
+            {locationTrackingError ? (
+              <p className="mb-3 rounded-2xl bg-white/8 px-4 py-3 text-sm text-cream/78">{locationTrackingError}</p>
+            ) : null}
             <LocationMap
-              restaurants={
-                focusRoute
-                  ? focusRoute.orders.map((order) => ({
-                      id: String(order.id),
-                      label: `${order.restaurantName} • Order #${order.id}`,
-                      address: order.deliveryAddress,
-                      latitude: order.restaurantLatitude,
-                      longitude: order.restaurantLongitude,
-                      distanceKm: order.distanceKm
-                    }))
-                  : []
-              }
-              deliveryPoint={
-                focusRoute
-                  ? {
-                      id: `delivery-${focusRoute.primaryOrder.id}`,
-                      label: focusRoute.isGrouped ? "Combined delivery drop-off" : "Current drop-off focus",
-                      address: focusRoute.primaryOrder.deliveryAddress,
-                      latitude: focusRoute.primaryOrder.deliveryLatitude,
-                      longitude: focusRoute.primaryOrder.deliveryLongitude
-                    }
-                  : undefined
-              }
+              restaurants={routeRestaurants}
+              deliveryPoint={routeDeliveryPoint}
+              riderPoint={riderPoint}
+              routeLines={routeLines}
               heightClassName="h-[280px]"
             />
           </div>
@@ -221,8 +419,23 @@ export function DeliveryDashboardClient() {
                     key={route.key}
                     route={route}
                     busy={busyRouteKey === route.key}
-                    actionLabel={route.isGrouped ? "Mark route delivered" : "Mark delivered"}
-                    onAction={() => void handleComplete(route)}
+                    actionLabel={
+                      canCompleteRoute(route, session.email)
+                        ? route.isGrouped ? "Mark route delivered" : "Mark delivered"
+                        : undefined
+                    }
+                    onAction={
+                      canCompleteRoute(route, session.email)
+                        ? () => void handleComplete(route)
+                        : undefined
+                    }
+                    secondaryActionLabel="Unclaim route"
+                    onSecondaryAction={() => void handleUnclaim(route)}
+                    helperText={
+                      canCompleteRoute(route, session.email)
+                        ? "This route is fully assigned to you and ready to complete."
+                        : "This route is not fully claimed by you yet. Unclaim it first, then reclaim the full route before delivery."
+                    }
                   />
                 ))
               ) : (
@@ -277,7 +490,15 @@ function GateCard(props: { title: string; body: string; href: string; action: st
   );
 }
 
-function DeliveryCard(props: { route: DeliveryRoute; busy: boolean; actionLabel: string; onAction?: () => void }) {
+function DeliveryCard(props: {
+  route: DeliveryRoute;
+  busy: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  helperText?: string;
+}) {
   const order = props.route.primaryOrder;
   const totalAmount = props.route.orders.reduce((sum, current) => sum + current.total, 0);
   const totalItems = props.route.orders.reduce((sum, current) => sum + current.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
@@ -290,7 +511,11 @@ function DeliveryCard(props: { route: DeliveryRoute; busy: boolean; actionLabel:
             {props.route.isGrouped ? props.route.groupReference : `Order #${order.id}`}
           </p>
           <h3 className="mt-2 text-xl font-semibold text-ink">
-            {props.route.isGrouped ? `${props.route.orders.length} restaurants, one drop-off` : order.restaurantName}
+            {props.route.isGrouped
+              ? props.route.orders.length === 1
+                ? "Combined checkout, single restaurant drop-off"
+                : `${props.route.orders.length} restaurants, one drop-off`
+              : order.restaurantName}
           </h3>
           <p className="mt-2 text-sm text-ink/68">{order.customerName}</p>
           <p className="mt-1 text-sm text-ink/68">{order.deliveryAddress}</p>
@@ -323,6 +548,8 @@ function DeliveryCard(props: { route: DeliveryRoute; busy: boolean; actionLabel:
         )}
       </div>
 
+      {props.helperText ? <p className="mt-4 text-sm text-ink/65">{props.helperText}</p> : null}
+
       <div className="mt-5 flex flex-wrap gap-3">
         <Link
           href={props.route.isGrouped ? `/orders/${order.id}/receipt` : `/orders/${order.id}`}
@@ -330,7 +557,7 @@ function DeliveryCard(props: { route: DeliveryRoute; busy: boolean; actionLabel:
         >
           {props.route.isGrouped ? "Open combined order" : "Open order"}
         </Link>
-        {props.onAction ? (
+        {props.onAction && props.actionLabel ? (
           <button
             type="button"
             onClick={props.onAction}
@@ -339,9 +566,20 @@ function DeliveryCard(props: { route: DeliveryRoute; busy: boolean; actionLabel:
           >
             {props.busy ? "Updating..." : props.actionLabel}
           </button>
-        ) : (
+        ) : null}
+        {props.onSecondaryAction && props.secondaryActionLabel ? (
+          <button
+            type="button"
+            onClick={props.onSecondaryAction}
+            disabled={props.busy}
+            className="rounded-full border border-ink/15 bg-white px-4 py-2 text-sm font-semibold text-ink disabled:opacity-60"
+          >
+            {props.busy ? "Updating..." : props.secondaryActionLabel}
+          </button>
+        ) : null}
+        {!props.onAction && !props.onSecondaryAction && props.actionLabel ? (
           <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink/70">{props.actionLabel}</span>
-        )}
+        ) : null}
       </div>
     </article>
   );
@@ -377,4 +615,34 @@ function groupOrdersIntoRoutes(orders: Order[]) {
   }
 
   return Array.from(routes.values());
+}
+
+function buildRouteRestaurantStops(route: DeliveryRoute): MapStop[] {
+  const stops = new Map<string, MapStop>();
+
+  for (const order of route.orders) {
+    const key = `${order.restaurantName}-${order.restaurantLatitude}-${order.restaurantLongitude}`;
+    if (stops.has(key)) {
+      continue;
+    }
+
+    stops.set(key, {
+      id: key,
+      label: `${order.restaurantName} pickup`,
+      address: order.restaurantName,
+      latitude: order.restaurantLatitude,
+      longitude: order.restaurantLongitude,
+      distanceKm: order.distanceKm
+    });
+  }
+
+  return Array.from(stops.values());
+}
+
+function canCompleteRoute(route: DeliveryRoute, driverEmail: string) {
+  return route.orders.every(
+    (order) =>
+      order.status === "OUT_FOR_DELIVERY"
+      && order.deliveryPersonEmail?.toUpperCase() === driverEmail.toUpperCase()
+  );
 }

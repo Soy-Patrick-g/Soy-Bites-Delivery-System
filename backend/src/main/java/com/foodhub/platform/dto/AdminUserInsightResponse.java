@@ -8,6 +8,7 @@ public record AdminUserInsightResponse(
         String fullName,
         String email,
         String role,
+        boolean active,
         BigDecimal balance,
         String kycStatus,
         boolean riskFlagged,

@@ -48,6 +48,7 @@ export type RestaurantSummary = {
   cuisine: string;
   city: string;
   address: string;
+  verified: boolean;
   latitude: number;
   longitude: number;
   averageRating: number;
@@ -177,12 +178,26 @@ export type AdminUserInsight = {
   fullName: string;
   email: string;
   role: string;
+  active: boolean;
   balance: number;
   kycStatus: string;
   riskFlagged: boolean;
   alertNote?: string | null;
   transactionCount: number;
   recentTransactions: AdminUserTransactionPreview[];
+};
+
+export type AdminRestaurant = {
+  id: number;
+  name: string;
+  brandName?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  city: string;
+  address: string;
+  active: boolean;
+  verified: boolean;
+  createdAt: string;
 };
 
 export type AdminDashboard = {
@@ -217,9 +232,16 @@ export type OwnerDashboard = {
   orders: Order[];
 };
 
+export type DeliveryLocation = {
+  latitude: number;
+  longitude: number;
+};
+
 export type DeliveryDashboard = {
   driverName: string;
   driverEmail: string;
+  currentLatitude?: number | null;
+  currentLongitude?: number | null;
   availableOrders: Order[];
   assignedOrders: Order[];
 };
@@ -248,6 +270,22 @@ export type AdminTransactionFilters = {
 export type LoginRequest = {
   email: string;
   password: string;
+};
+
+export type ForgotPasswordRequest = {
+  email: string;
+};
+
+export type ForgotPasswordResult = {
+  message: string;
+  previewResetUrl?: string | null;
+  expiresAt?: string | null;
+};
+
+export type ResetPasswordRequest = {
+  token: string;
+  password: string;
+  confirmPassword: string;
 };
 
 export type PlaceOrderPayload = {

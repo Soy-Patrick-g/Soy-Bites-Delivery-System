@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { formatCurrency, getCurrentUserOrderHistory } from "@/lib/api";
 import { Order } from "@/lib/types";
 
@@ -12,6 +13,7 @@ export function UserDashboardClient() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const showSlowLoadNotice = useSlowLoadNotice(isLoading);
 
   useEffect(() => {
     async function load() {
@@ -38,7 +40,18 @@ export function UserDashboardClient() {
   }, [isReady, session]);
 
   if (!isReady || isLoading) {
-    return <Shell><p className="text-sm text-ink/70">Loading your dashboard...</p></Shell>;
+    return (
+      <Shell>
+        <div className="space-y-3">
+          <p className="text-sm text-ink/70">Loading your dashboard...</p>
+          {showSlowLoadNotice ? (
+            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
+              This is taking longer than usual, but your dashboard is still loading.
+            </p>
+          ) : null}
+        </div>
+      </Shell>
+    );
   }
 
   if (!session) {

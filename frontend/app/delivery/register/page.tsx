@@ -4,7 +4,11 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { LocationPicker } from "@/components/LocationPicker";
+import { PasswordField } from "@/components/PasswordField";
 import { registerDeliveryPerson } from "@/lib/api";
+import type { LocationSelection } from "@/lib/location";
+import { isStrongPassword, STRONG_PASSWORD_RULE } from "@/lib/password";
 
 export default function DeliveryRegisterPage() {
   const router = useRouter();
@@ -12,11 +16,16 @@ export default function DeliveryRegisterPage() {
   const [form, setForm] = useState({
     fullName: "Kofi Rider",
     email: "newrider@foodhub.dev",
-    password: "Password123!",
+    password: "",
     city: "Accra",
-    vehicleType: "Motorbike",
-    latitude: "5.5725",
-    longitude: "-0.1760"
+    vehicleType: "Motorbike"
+  });
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [location, setLocation] = useState<LocationSelection>({
+    address: "Osu, Accra",
+    city: "Accra",
+    latitude: 5.5725,
+    longitude: -0.176
   });
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,13 +33,24 @@ export default function DeliveryRegisterPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!isStrongPassword(form.password)) {
+      setError(STRONG_PASSWORD_RULE);
+      return;
+    }
+
+    if (form.password !== confirmPassword) {
+      setError("Password and confirm password must match.");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);
       const session = await registerDeliveryPerson({
         ...form,
-        latitude: Number(form.latitude),
-        longitude: Number(form.longitude)
+        city: location.city || form.city,
+        latitude: location.latitude,
+        longitude: location.longitude
       });
       login(session);
       router.push("/delivery/dashboard");
@@ -60,11 +80,26 @@ export default function DeliveryRegisterPage() {
           <form className="grid gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
             <Field label="Full name" value={form.fullName} onChange={(value) => setForm({ ...form, fullName: value })} />
             <Field label="Email" value={form.email} onChange={(value) => setForm({ ...form, email: value })} />
-            <Field label="Password" value={form.password} type="password" onChange={(value) => setForm({ ...form, password: value })} />
+            <PasswordField label="Password" value={form.password} onChange={(value) => setForm({ ...form, password: value })} />
+            <PasswordField label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} />
             <Field label="Vehicle type" value={form.vehicleType} onChange={(value) => setForm({ ...form, vehicleType: value })} />
-            <Field label="City" value={form.city} onChange={(value) => setForm({ ...form, city: value })} />
-            <Field label="Latitude" value={form.latitude} onChange={(value) => setForm({ ...form, latitude: value })} />
-            <Field label="Longitude" value={form.longitude} onChange={(value) => setForm({ ...form, longitude: value })} />
+            <div className="md:col-span-2 rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
+              Strong password required: {STRONG_PASSWORD_RULE}
+            </div>
+            <div className="md:col-span-2">
+              <LocationPicker
+                title="Rider base location"
+                description="Use your current location or pick a point on the map. This becomes the rider’s starting area for dispatch and live route tracking."
+                value={location}
+                onChange={(nextLocation) => {
+                  setLocation(nextLocation);
+                  setForm((current) => ({
+                    ...current,
+                    city: nextLocation.city || current.city
+                  }));
+                }}
+              />
+            </div>
 
             {error ? (
               <p className="md:col-span-2 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p>

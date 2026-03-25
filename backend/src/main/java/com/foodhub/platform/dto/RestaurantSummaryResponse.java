@@ -11,6 +11,7 @@ public record RestaurantSummaryResponse(
         String cuisine,
         String city,
         String address,
+        boolean verified,
         Double latitude,
         Double longitude,
         BigDecimal averageRating,

@@ -311,6 +311,7 @@ public class OwnerPortalService {
                 restaurant.getCuisine(),
                 restaurant.getCity(),
                 restaurant.getAddress(),
+                restaurant.isVerified(),
                 restaurant.getLatitude(),
                 restaurant.getLongitude(),
                 restaurant.getAverageRating(),

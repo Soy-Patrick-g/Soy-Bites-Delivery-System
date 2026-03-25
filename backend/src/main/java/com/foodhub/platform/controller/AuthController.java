@@ -2,7 +2,11 @@ package com.foodhub.platform.controller;
 
 import com.foodhub.platform.dto.AuthRequest;
 import com.foodhub.platform.dto.AuthResponse;
+import com.foodhub.platform.dto.ForgotPasswordRequest;
+import com.foodhub.platform.dto.ForgotPasswordResponse;
+import com.foodhub.platform.dto.MessageResponse;
 import com.foodhub.platform.dto.RegisterRequest;
+import com.foodhub.platform.dto.ResetPasswordRequest;
 import com.foodhub.platform.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
@@ -30,6 +34,16 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody AuthRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/forgot-password")
+    public ForgotPasswordResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return authService.forgotPassword(request);
+    }
+
+    @PostMapping("/reset-password")
+    public MessageResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return authService.resetPassword(request);
     }
 
     @PostMapping("/logout")

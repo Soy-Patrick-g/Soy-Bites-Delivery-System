@@ -12,9 +12,19 @@ export type MapStop = {
   estimatedDeliveryFee?: number | null;
 };
 
+export type MapRouteLine = {
+  id: string;
+  points: [number, number][];
+  color?: string;
+  dashed?: boolean;
+};
+
 type LocationMapProps = {
   restaurants: MapStop[];
   deliveryPoint?: MapStop;
+  riderPoint?: MapStop;
+  routeLines?: MapRouteLine[];
+  onMapClick?: (latitude: number, longitude: number) => void;
   heightClassName?: string;
 };
 

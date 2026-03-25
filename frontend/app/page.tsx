@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
 import { LocationMap } from "@/components/LocationMap";
 import { RestaurantCard } from "@/components/RestaurantCard";
+import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { formatCurrency, getRestaurants } from "@/lib/api";
 import { RestaurantSummary } from "@/lib/types";
 
@@ -13,6 +14,7 @@ export default function HomePage() {
   const [restaurants, setRestaurants] = useState<RestaurantSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const showSlowLoadNotice = useSlowLoadNotice(isLoading);
 
   useEffect(() => {
     async function loadRestaurants() {
@@ -147,6 +149,11 @@ export default function HomePage() {
         {isLoading ? (
           <div className="rounded-[28px] border border-ink/10 bg-white/90 p-6 text-sm text-ink/70 shadow-soft">
             Loading restaurants...
+            {showSlowLoadNotice ? (
+              <p className="mt-3 rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
+                This is taking longer than usual, but the app is still waiting for the restaurants to load.
+              </p>
+            ) : null}
           </div>
         ) : error ? (
           <div className="rounded-[28px] border border-red-300/40 bg-red-500/10 p-6 text-sm text-red-700 shadow-soft">

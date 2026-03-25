@@ -4,7 +4,8 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { login } from "@/lib/api";
+import { PasswordField } from "@/components/PasswordField";
+import { login } from "@/lib/auth-api";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -112,15 +113,13 @@ export default function LoginPage() {
               />
             </label>
 
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-ink/70">Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-2xl border border-ink/10 bg-cream px-4 py-3 text-sm text-ink outline-none"
-              />
-            </label>
+            <PasswordField label="Password" value={password} onChange={setPassword} />
+
+            <div className="-mt-1 flex justify-end">
+              <Link href="/forgot-password" className="text-sm font-semibold text-olive">
+                Forgot password?
+              </Link>
+            </div>
 
             {error ? (
               <p className="rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p>

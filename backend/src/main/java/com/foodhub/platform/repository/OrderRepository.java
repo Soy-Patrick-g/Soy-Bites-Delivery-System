@@ -26,4 +26,10 @@ public interface OrderRepository extends JpaRepository<FoodOrder, Long> {
 
     @EntityGraph(attributePaths = {"items", "items.menuItem", "restaurant", "customer", "deliveryPerson"})
     Optional<FoodOrder> findById(Long id);
+
+    long countByCustomerId(Long customerId);
+
+    long countByDeliveryPersonId(Long deliveryPersonId);
+
+    long countByRestaurantOwnerId(Long ownerId);
 }

@@ -174,6 +174,7 @@ public class RestaurantService {
                 restaurant.getCuisine(),
                 restaurant.getCity(),
                 restaurant.getAddress(),
+                restaurant.isVerified(),
                 restaurant.getLatitude(),
                 restaurant.getLongitude(),
                 restaurant.getAverageRating(),

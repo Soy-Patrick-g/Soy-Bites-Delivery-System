@@ -34,6 +34,9 @@ public class AppUser {
     @Column(nullable = false)
     private UserRole role;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
+
     private Double latitude;
 
     private Double longitude;
@@ -111,6 +114,14 @@ public class AppUser {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public Double getLatitude() {

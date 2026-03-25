@@ -6,21 +6,28 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
+import { LocationPicker } from "@/components/LocationPicker";
 import { LocationMap } from "@/components/LocationMap";
+import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { formatCurrency, getRestaurants, placeGroupOrder } from "@/lib/api";
 import { RestaurantSummary } from "@/lib/types";
+import type { LocationSelection } from "@/lib/location";
 
 export function CheckoutClient() {
   const router = useRouter();
   const { isReady, session } = useAuth();
   const { items, itemCount, setQuantity, subtotal, clearCart, isReady: isCartReady } = useCart();
   const [restaurants, setRestaurants] = useState<RestaurantSummary[]>([]);
-  const [deliveryAddress, setDeliveryAddress] = useState("East Legon, Lagos Avenue 14");
-  const [deliveryLatitude, setDeliveryLatitude] = useState("5.56");
-  const [deliveryLongitude, setDeliveryLongitude] = useState("-0.205");
+  const [deliveryLocation, setDeliveryLocation] = useState<LocationSelection>({
+    address: "East Legon, Lagos Avenue 14, Accra",
+    city: "Accra",
+    latitude: 5.56,
+    longitude: -0.205
+  });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const showSlowLoadNotice = useSlowLoadNotice(isLoading || isSubmitting);
 
   useEffect(() => {
     async function loadRestaurants() {
@@ -67,22 +74,13 @@ export function CheckoutClient() {
 
   const deliveryFee = groupedItems.reduce((sum, group) => sum + group.deliveryFee, 0);
   const total = subtotal + deliveryFee;
-  const deliveryPoint = useMemo(() => {
-    const latitude = Number(deliveryLatitude);
-    const longitude = Number(deliveryLongitude);
-
-    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-      return undefined;
-    }
-
-    return {
-      id: "delivery-point",
-      label: "Delivery destination",
-      address: deliveryAddress,
-      latitude,
-      longitude
-    };
-  }, [deliveryAddress, deliveryLatitude, deliveryLongitude]);
+  const deliveryPoint = {
+    id: "delivery-point",
+    label: "Delivery destination",
+    address: deliveryLocation.address,
+    latitude: deliveryLocation.latitude,
+    longitude: deliveryLocation.longitude
+  };
 
   const mappedRestaurants = useMemo(
     () =>
@@ -121,9 +119,9 @@ export function CheckoutClient() {
       setIsSubmitting(true);
       setError(null);
       const batch = await placeGroupOrder(session.token, {
-        deliveryAddress,
-        deliveryLatitude: Number(deliveryLatitude),
-        deliveryLongitude: Number(deliveryLongitude),
+        deliveryAddress: deliveryLocation.address,
+        deliveryLatitude: deliveryLocation.latitude,
+        deliveryLongitude: deliveryLocation.longitude,
         customerEmail: session.email,
         items: items.map((item) => ({
           menuItemId: item.menuItemId,
@@ -147,7 +145,18 @@ export function CheckoutClient() {
   }
 
   if (!isReady || !isCartReady || isLoading) {
-    return <Shell><p className="text-sm text-ink/70">Loading checkout...</p></Shell>;
+    return (
+      <Shell>
+        <div className="space-y-3">
+          <p className="text-sm text-ink/70">Loading checkout...</p>
+          {showSlowLoadNotice ? (
+            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
+              This is taking longer than usual, but checkout is still loading.
+            </p>
+          ) : null}
+        </div>
+      </Shell>
+    );
   }
 
   if (error && restaurants.length === 0) {
@@ -235,9 +244,15 @@ export function CheckoutClient() {
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               <Field label="Customer name" value={session.fullName} readOnly />
               <Field label="Email address" value={session.email} readOnly />
-              <Field label="Delivery address" value={deliveryAddress} onChange={setDeliveryAddress} />
-              <Field label="Latitude" value={deliveryLatitude} onChange={setDeliveryLatitude} />
-              <Field label="Longitude" value={deliveryLongitude} onChange={setDeliveryLongitude} />
+              <div className="md:col-span-2">
+                <LocationPicker
+                  title="Drop-off location"
+                  description="Search for the delivery address, use your current location, or click the map. The app keeps the exact coordinates behind the scenes for pricing and dispatch."
+                  value={deliveryLocation}
+                  onChange={setDeliveryLocation}
+                  heightClassName="h-[340px]"
+                />
+              </div>
             </div>
           </section>
 
@@ -248,7 +263,7 @@ export function CheckoutClient() {
                 <h2 className="mt-2 text-2xl font-semibold text-ink">Restaurants mapped against the drop-off point</h2>
               </div>
               <p className="max-w-md text-sm leading-6 text-ink/65">
-                Dashed lines show each restaurant leg feeding into this combined checkout so delivery distance stays visible while you edit coordinates.
+                Dashed lines show each restaurant leg feeding into this combined checkout while you refine the address with search or the map.
               </p>
             </div>
             <LocationMap restaurants={mappedRestaurants} deliveryPoint={deliveryPoint} />
@@ -366,6 +381,11 @@ export function CheckoutClient() {
           >
             {isSubmitting ? "Placing combined order..." : "Place combined order"}
           </button>
+          {isSubmitting && showSlowLoadNotice ? (
+            <p className="mt-4 rounded-2xl bg-white/8 px-4 py-3 text-sm text-cream/75">
+              This is taking longer than usual, but your order is still being submitted.
+            </p>
+          ) : null}
         </aside>
       </section>
     </Shell>

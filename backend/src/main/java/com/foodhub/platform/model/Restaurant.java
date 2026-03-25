@@ -47,6 +47,9 @@ public class Restaurant {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean verified = false;
+
     @Column(nullable = false, precision = 3, scale = 2)
     private BigDecimal averageRating = BigDecimal.ZERO;
 
@@ -140,6 +143,14 @@ public class Restaurant {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
     }
 
     public BigDecimal getAverageRating() {

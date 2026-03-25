@@ -2,15 +2,19 @@ import axios from "axios";
 import {
   AdminAuditLog,
   AdminDashboard,
+  AdminRestaurant,
   AdminSessionRecord,
   AdminTransaction,
   AdminTransactionFilters,
   AdminUserInsight,
   AuthSession,
   CreateRestaurantBranchRequest,
+  DeliveryLocation,
   CreateOwnerMenuItemRequest,
   DeliveryDashboard,
   DeliveryRegisterRequest,
+  ForgotPasswordRequest,
+  ForgotPasswordResult,
   LoginRequest,
   MenuItem,
   OrderBatch,
@@ -23,13 +27,13 @@ import {
   RestaurantOwnerRegisterRequest,
   RestaurantDetail,
   RestaurantSummary,
+  ResetPasswordRequest,
   UploadedImage,
   UpdateOwnerMenuItemRequest
 } from "@/lib/types";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api",
-  timeout: 15000
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api"
 });
 
 function cleanParams(params: Record<string, string | undefined>) {
@@ -177,12 +181,85 @@ export async function getAdminUsers(token: string, search?: string): Promise<Adm
   }
 }
 
+export async function updateAdminUserStatus(token: string, userId: number, active: boolean): Promise<AdminUserInsight> {
+  try {
+    const { data } = await api.patch<AdminUserInsight>(`/admin/users/${userId}/status`, { active }, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Updating user ${userId}`);
+  }
+}
+
+export async function deleteAdminUser(token: string, userId: number): Promise<void> {
+  try {
+    await api.delete(`/admin/users/${userId}`, {
+      headers: authHeaders(token)
+    });
+  } catch (error) {
+    throw toMessage(error, `Deleting user ${userId}`);
+  }
+}
+
+export async function getAdminRestaurants(token: string, search?: string): Promise<AdminRestaurant[]> {
+  try {
+    const { data } = await api.get<AdminRestaurant[]>("/admin/restaurants", {
+      headers: authHeaders(token),
+      params: cleanParams({ search })
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Loading restaurants");
+  }
+}
+
+export async function updateAdminRestaurantVerification(token: string, restaurantId: number, verified: boolean): Promise<AdminRestaurant> {
+  try {
+    const { data } = await api.patch<AdminRestaurant>(`/admin/restaurants/${restaurantId}/verification`, { verified }, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Updating restaurant ${restaurantId} verification`);
+  }
+}
+
+export async function updateAdminRestaurantStatus(token: string, restaurantId: number, active: boolean): Promise<AdminRestaurant> {
+  try {
+    const { data } = await api.patch<AdminRestaurant>(`/admin/restaurants/${restaurantId}/status`, { active }, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Updating restaurant ${restaurantId} status`);
+  }
+}
+
 export async function login(request: LoginRequest): Promise<AuthSession> {
   try {
     const { data } = await api.post<AuthSession>("/auth/login", request);
     return data;
   } catch (error) {
     throw toMessage(error, "Login");
+  }
+}
+
+export async function forgotPassword(request: ForgotPasswordRequest): Promise<ForgotPasswordResult> {
+  try {
+    const { data } = await api.post<ForgotPasswordResult>("/auth/forgot-password", request);
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Password reset request");
+  }
+}
+
+export async function resetPassword(request: ResetPasswordRequest): Promise<{ message: string }> {
+  try {
+    const { data } = await api.post<{ message: string }>("/auth/reset-password", request);
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Password reset");
   }
 }
 
@@ -228,8 +305,7 @@ export async function addRestaurantReview(token: string, payload: ReviewRequest)
 export async function placeOrder(token: string, payload: PlaceOrderPayload): Promise<Order> {
   try {
     const { data } = await api.post<Order>("/orders", payload, {
-      headers: authHeaders(token),
-      timeout: 20000
+      headers: authHeaders(token)
     });
     return data;
   } catch (error) {
@@ -240,8 +316,7 @@ export async function placeOrder(token: string, payload: PlaceOrderPayload): Pro
 export async function placeGroupOrder(token: string, payload: PlaceGroupOrderPayload): Promise<OrderBatch> {
   try {
     const { data } = await api.post<OrderBatch>("/orders/batch", payload, {
-      headers: authHeaders(token),
-      timeout: 25000
+      headers: authHeaders(token)
     });
     return data;
   } catch (error) {
@@ -263,8 +338,7 @@ export async function verifyPayment(reference: string): Promise<Order> {
 export async function getOwnerDashboard(token: string): Promise<OwnerDashboard> {
   try {
     const { data } = await api.get<OwnerDashboard>("/owner/dashboard", {
-      headers: authHeaders(token),
-      timeout: 60000
+      headers: authHeaders(token)
     });
     return data;
   } catch (error) {
@@ -275,8 +349,7 @@ export async function getOwnerDashboard(token: string): Promise<OwnerDashboard> 
 export async function getOwnerRestaurantMenu(token: string, restaurantId: number): Promise<MenuItem[]> {
   try {
     const { data } = await api.get<MenuItem[]>(`/owner/restaurants/${restaurantId}/menu`, {
-      headers: authHeaders(token),
-      timeout: 45000
+      headers: authHeaders(token)
     });
     return data;
   } catch (error) {
@@ -372,6 +445,17 @@ export async function getDeliveryDashboard(token: string): Promise<DeliveryDashb
   }
 }
 
+export async function updateDeliveryLocation(token: string, location: DeliveryLocation): Promise<DeliveryLocation> {
+  try {
+    const { data } = await api.patch<DeliveryLocation>("/delivery/location", location, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Updating live rider location");
+  }
+}
+
 export async function claimDeliveryOrder(token: string, orderId: number): Promise<Order> {
   try {
     const { data } = await api.patch<Order>(`/delivery/orders/${orderId}/claim`, undefined, {
@@ -380,6 +464,17 @@ export async function claimDeliveryOrder(token: string, orderId: number): Promis
     return data;
   } catch (error) {
     throw toMessage(error, `Claiming delivery ${orderId}`);
+  }
+}
+
+export async function unclaimDeliveryOrder(token: string, orderId: number): Promise<Order> {
+  try {
+    const { data } = await api.patch<Order>(`/delivery/orders/${orderId}/unclaim`, undefined, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, `Unclaiming delivery ${orderId}`);
   }
 }
 

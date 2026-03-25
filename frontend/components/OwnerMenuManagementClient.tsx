@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { LocationPicker } from "@/components/LocationPicker";
+import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import {
   createOwnerBranch,
   createOwnerMenuItem,
@@ -15,6 +17,7 @@ import {
   updateOwnerMenuItem
 } from "@/lib/api";
 import { MenuItem, OwnerDashboard } from "@/lib/types";
+import type { LocationSelection } from "@/lib/location";
 
 type MenuFormState = {
   name: string;
@@ -67,7 +70,6 @@ export function OwnerMenuManagementClient() {
   const [menuByRestaurant, setMenuByRestaurant] = useState<Record<number, MenuItem[]>>({});
   const [isMenuLoading, setIsMenuLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [showSlowLoadNotice, setShowSlowLoadNotice] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeMenuItemId, setActiveMenuItemId] = useState<number | null>(null);
   const [editingMenuItemId, setEditingMenuItemId] = useState<number | null>(null);
@@ -75,20 +77,14 @@ export function OwnerMenuManagementClient() {
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [menuForm, setMenuForm] = useState<MenuFormState>(emptyMenuForm);
   const [branchForm, setBranchForm] = useState<BranchFormState>(emptyBranchForm);
+  const [branchLocation, setBranchLocation] = useState<LocationSelection>({
+    address: "",
+    city: "Accra",
+    latitude: 5.6037,
+    longitude: -0.187
+  });
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-
-  useEffect(() => {
-    if (!isLoading && !isMenuLoading) {
-      setShowSlowLoadNotice(false);
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setShowSlowLoadNotice(true);
-    }, 8000);
-
-    return () => window.clearTimeout(timer);
-  }, [isLoading, isMenuLoading]);
+  const showSlowLoadNotice = useSlowLoadNotice(isLoading || isMenuLoading);
 
   useEffect(() => {
     async function load() {
@@ -237,6 +233,7 @@ export function OwnerMenuManagementClient() {
     }
 
     try {
+      const nextBranchCity = branchLocation.city || branchForm.city || "Accra";
       setIsCreatingBranch(true);
       setError(null);
       const created = await createOwnerBranch(session.token, {
@@ -244,10 +241,10 @@ export function OwnerMenuManagementClient() {
         branchName: branchForm.branchName,
         description: branchForm.description,
         cuisine: branchForm.cuisine,
-        address: branchForm.address,
-        city: branchForm.city,
-        latitude: Number(branchForm.latitude),
-        longitude: Number(branchForm.longitude)
+        address: branchLocation.address || branchForm.address,
+        city: nextBranchCity,
+        latitude: branchLocation.latitude,
+        longitude: branchLocation.longitude
       });
       setDashboard((current) =>
         current
@@ -262,8 +259,14 @@ export function OwnerMenuManagementClient() {
       setBranchForm((current) => ({
         ...emptyBranchForm,
         brandName: current.brandName,
-        city: current.city || "Accra"
+        city: nextBranchCity
       }));
+      setBranchLocation({
+        address: "",
+        city: nextBranchCity,
+        latitude: 5.6037,
+        longitude: -0.187
+      });
       setShowBranchModal(false);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to create branch");
@@ -615,11 +618,20 @@ export function OwnerMenuManagementClient() {
               <Field label="Branch name" value={branchForm.branchName} onChange={(value) => setBranchForm({ ...branchForm, branchName: value })} />
               <AreaField label="Description" value={branchForm.description} onChange={(value) => setBranchForm({ ...branchForm, description: value })} />
               <Field label="Cuisine" value={branchForm.cuisine} onChange={(value) => setBranchForm({ ...branchForm, cuisine: value })} />
-              <Field label="Address" value={branchForm.address} onChange={(value) => setBranchForm({ ...branchForm, address: value })} />
-              <Field label="City" value={branchForm.city} onChange={(value) => setBranchForm({ ...branchForm, city: value })} />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Latitude" value={branchForm.latitude} onChange={(value) => setBranchForm({ ...branchForm, latitude: value })} />
-                <Field label="Longitude" value={branchForm.longitude} onChange={(value) => setBranchForm({ ...branchForm, longitude: value })} />
+              <div className="sm:col-span-2">
+                <LocationPicker
+                  title="Branch location"
+                  description="Choose the branch location from the map, search by address, or use your current position."
+                  value={branchLocation}
+                  onChange={(nextLocation) => {
+                    setBranchLocation(nextLocation);
+                    setBranchForm((current) => ({
+                      ...current,
+                      address: nextLocation.address,
+                      city: nextLocation.city || current.city
+                    }));
+                  }}
+                />
               </div>
               <div className="flex flex-wrap gap-3">
                 <button
@@ -631,10 +643,8 @@ export function OwnerMenuManagementClient() {
                     !branchForm.branchName ||
                     !branchForm.description ||
                     !branchForm.cuisine ||
-                    !branchForm.address ||
-                    !branchForm.city ||
-                    !branchForm.latitude ||
-                    !branchForm.longitude
+                    !branchLocation.address ||
+                    !branchLocation.city
                   }
                   className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-cream disabled:opacity-60"
                 >
