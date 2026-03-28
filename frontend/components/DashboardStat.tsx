@@ -13,4 +13,3 @@ export function DashboardStat({ label, value, hint }: DashboardStatProps) {
     </div>
   );
 }
-

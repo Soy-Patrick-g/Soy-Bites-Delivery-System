@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { verifyPayment } from "@/lib/api";
+import { formatOrderStatus, formatPaymentStatus } from "@/lib/order-display";
 import { Order } from "@/lib/types";
 
 export default function CheckoutCallbackPage() {
@@ -18,7 +19,7 @@ export default function CheckoutCallbackPage() {
   useEffect(() => {
     async function confirmPayment() {
       if (!reference) {
-        setError("No payment reference was provided by the checkout callback.");
+        setError("We could not confirm your payment because the payment reference is missing.");
         setIsLoading(false);
         return;
       }
@@ -41,10 +42,10 @@ export default function CheckoutCallbackPage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-14">
       <div className="rounded-[36px] bg-ink p-8 text-cream shadow-soft">
-        <p className="text-sm uppercase tracking-[0.22em] text-citrus">Checkout callback</p>
+        <p className="text-sm uppercase tracking-[0.22em] text-citrus">Payment confirmation</p>
         <h1 className="mt-3 font-serif text-5xl">Confirming your payment</h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-cream/70">
-          We are checking the Paystack reference and syncing the latest order state from the backend before you print a receipt.
+          We are confirming your payment and updating your order details before you continue.
         </p>
       </div>
 
@@ -75,14 +76,14 @@ export default function CheckoutCallbackPage() {
             <div className="grid gap-5 md:grid-cols-[1fr_0.8fr]">
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-olive">Payment status</p>
-                <h2 className="mt-2 text-3xl font-semibold text-ink">{order.paymentStatus}</h2>
+                <h2 className="mt-2 text-3xl font-semibold text-ink">{formatPaymentStatus(order.paymentStatus)}</h2>
                 <p className="mt-4 text-sm leading-7 text-ink/68">
-                  Your checkout is now linked to payment reference {order.paymentReference}. The first restaurant order in that checkout is order #{order.id} for {order.restaurantName}.
+                  Your payment has been linked to reference {order.paymentReference}. Order #{order.id} for {order.restaurantName} is now ready to track.
                 </p>
               </div>
               <div className="rounded-3xl bg-cream p-5">
-                <p className="text-sm text-ink/60">Checkout synced</p>
-                <p className="mt-3 text-3xl font-semibold text-ink">{order.status}</p>
+                <p className="text-sm text-ink/60">Order status</p>
+                <p className="mt-3 text-3xl font-semibold text-ink">{formatOrderStatus(order.status)}</p>
               </div>
             </div>
 

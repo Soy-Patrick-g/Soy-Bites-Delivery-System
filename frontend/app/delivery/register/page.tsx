@@ -14,16 +14,16 @@ export default function DeliveryRegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [form, setForm] = useState({
-    fullName: "Kofi Rider",
-    email: "newrider@foodhub.dev",
+    fullName: "",
+    email: "",
     password: "",
-    city: "Accra",
-    vehicleType: "Motorbike"
+    city: "",
+    vehicleType: ""
   });
   const [confirmPassword, setConfirmPassword] = useState("");
   const [location, setLocation] = useState<LocationSelection>({
-    address: "Osu, Accra",
-    city: "Accra",
+    address: "",
+    city: "",
     latitude: 5.5725,
     longitude: -0.176
   });
@@ -68,12 +68,8 @@ export default function DeliveryRegisterPage() {
           <p className="text-sm uppercase tracking-[0.22em] text-citrus">Delivery onboarding</p>
           <h1 className="mt-3 font-serif text-5xl">Create your rider account and start claiming routes</h1>
           <p className="mt-5 text-sm leading-7 text-cream/72">
-            This creates a `DELIVERY` user so you can open the dispatch board, claim ready orders, and mark deliveries complete.
+            Set up your rider profile, choose your service area, and start accepting delivery routes when you are approved.
           </p>
-          <div className="mt-8 rounded-3xl bg-white/8 p-5 text-sm">
-            <p className="font-semibold">Already have a rider account?</p>
-            <p className="mt-2 text-cream/70">Use `rider@foodhub.dev / Password123!` on the login page.</p>
-          </div>
         </section>
 
         <section className="rounded-[36px] border border-white/50 bg-white/90 p-8 shadow-soft">
@@ -89,7 +85,7 @@ export default function DeliveryRegisterPage() {
             <div className="md:col-span-2">
               <LocationPicker
                 title="Rider base location"
-                description="Use your current location or pick a point on the map. This becomes the rider’s starting area for dispatch and live route tracking."
+                description="Use your current location or choose a point on the map to set the area where you usually begin deliveries."
                 value={location}
                 onChange={(nextLocation) => {
                   setLocation(nextLocation);

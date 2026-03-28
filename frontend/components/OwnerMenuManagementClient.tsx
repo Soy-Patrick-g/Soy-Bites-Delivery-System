@@ -397,7 +397,7 @@ export function OwnerMenuManagementClient() {
                 <h2 className="mt-2 text-3xl font-semibold text-ink">Register foods manually</h2>
               </div>
               <div className="flex flex-wrap gap-4 text-sm font-semibold text-olive">
-                <Link href="/restaurant/dashboard">Back to kitchen board</Link>
+                <Link href="/restaurant/dashboard">Back to dashboard</Link>
                 <Link href="/restaurant/register">Register another restaurant</Link>
               </div>
             </div>

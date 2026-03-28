@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { BrowseLocationProvider } from "@/components/BrowseLocationProvider";
 import { CartProvider } from "@/components/CartProvider";
 import { Header } from "@/components/Header";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const display = DM_Serif_Display({
   subsets: ["latin"],
@@ -25,14 +27,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${display.variable} ${sans.variable}`}>
       <body className="font-sans text-ink antialiased">
-        <AuthProvider>
-          <CartProvider>
-            <Header />
-            {children}
-          </CartProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <BrowseLocationProvider>
+            <AuthProvider>
+              <CartProvider>
+                <Header />
+                {children}
+              </CartProvider>
+            </AuthProvider>
+          </BrowseLocationProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -146,12 +146,9 @@ export function LocationPicker({
           ) : null}
 
           <div className="rounded-2xl bg-cream px-4 py-4 text-sm text-ink/75">
-            <p className="font-semibold text-ink">Selected delivery point</p>
+            <p className="font-semibold text-ink">Selected location</p>
             <p className="mt-2">{value.address || "Choose a location from the map or search results."}</p>
             <p className="mt-2">City: {value.city || "Not resolved yet"}</p>
-            <p className="mt-2 text-xs text-ink/60">
-              {value.latitude.toFixed(5)}, {value.longitude.toFixed(5)}
-            </p>
             {isResolvingPoint ? <p className="mt-2 text-xs text-ink/60">Resolving map point...</p> : null}
           </div>
 
@@ -231,9 +228,6 @@ export function LocationPicker({
                   {value.address || "No resolved address yet"}
                 </p>
                 <p className="mt-2 text-sm text-ink/65">City: {value.city || "Not resolved yet"}</p>
-                <p className="mt-2 text-xs text-ink/55">
-                  {value.latitude.toFixed(5)}, {value.longitude.toFixed(5)}
-                </p>
                 {isResolvingPoint ? <p className="mt-3 text-sm text-ink/65">Resolving clicked map point...</p> : null}
                 <p className="mt-5 text-sm text-ink/70">
                   Tip: zoom in close to the street or building area you want, then click once on the map.

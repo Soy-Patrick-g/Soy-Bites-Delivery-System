@@ -1,5 +1,6 @@
 import axios from "axios";
 import {
+  Coordinates,
   AdminAuditLog,
   AdminDashboard,
   AdminRestaurant,
@@ -43,38 +44,78 @@ function cleanParams(params: Record<string, string | undefined>) {
 function toMessage(error: unknown, label: string): Error {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
-    const detail =
-      typeof error.response?.data === "string"
-        ? error.response.data
-        : error.message;
-    return new Error(`${label} failed${status ? ` (${status})` : ""}: ${detail}`);
+
+    if (!error.response) {
+      return new Error("We couldn’t connect right now. Please check your connection and try again.");
+    }
+
+    if (status === 401) {
+      return new Error("Your session has ended. Please sign in again and try once more.");
+    }
+
+    if (status === 403) {
+      return new Error("You do not have permission to do that.");
+    }
+
+    if (status === 404) {
+      return new Error(`${label} could not be found. Please refresh and try again.`);
+    }
+
+    if (status === 409) {
+      return new Error("This request could not be completed because the information changed. Please refresh and try again.");
+    }
+
+    if (status === 422) {
+      return new Error("Some of the information provided needs attention. Please review it and try again.");
+    }
+
+    if (status === 429) {
+      return new Error("Too many requests were made. Please wait a moment and try again.");
+    }
+
+    if (typeof status === "number" && status >= 500) {
+      return new Error(`${label} is temporarily unavailable. Please try again soon.`);
+    }
+
+    return new Error(`${label} could not be completed right now. Please try again.`);
   }
-  return error instanceof Error ? error : new Error(`${label} failed`);
+  return error instanceof Error ? error : new Error(`${label} could not be completed right now.`);
 }
 
 function authHeaders(token?: string) {
   return token ? { Authorization: `Bearer ${token}` } : undefined;
 }
 
-export async function getRestaurants(): Promise<RestaurantSummary[]> {
+function proximityParams(location?: Coordinates) {
+  if (!location) {
+    return undefined;
+  }
+
+  return {
+    lat: location.latitude,
+    lng: location.longitude
+  };
+}
+
+export async function getRestaurants(location?: Coordinates): Promise<RestaurantSummary[]> {
   try {
     const { data } = await api.get<RestaurantSummary[]>("/restaurants", {
-      params: { lat: 5.56, lng: -0.205 }
+      params: proximityParams(location)
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading restaurants");
+    throw toMessage(error, "Restaurant information");
   }
 }
 
-export async function getRestaurant(id: string): Promise<RestaurantDetail> {
+export async function getRestaurant(id: string, location?: Coordinates): Promise<RestaurantDetail> {
   try {
     const { data } = await api.get<RestaurantDetail>(`/restaurants/${id}`, {
-      params: { lat: 5.56, lng: -0.205 }
+      params: proximityParams(location)
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Loading restaurant ${id}`);
+    throw toMessage(error, "Restaurant information");
   }
 }
 
@@ -85,7 +126,7 @@ export async function getOrder(id: string, token?: string): Promise<Order> {
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Loading order ${id}`);
+    throw toMessage(error, "Order details");
   }
 }
 
@@ -96,7 +137,7 @@ export async function getOrderBatch(id: string, token?: string): Promise<OrderBa
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Loading combined receipt ${id}`);
+    throw toMessage(error, "Receipt details");
   }
 }
 
@@ -107,7 +148,7 @@ export async function getCurrentUserOrderHistory(token: string): Promise<Order[]
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading order history");
+    throw toMessage(error, "Order history");
   }
 }
 
@@ -118,7 +159,7 @@ export async function getDashboard(token: string): Promise<AdminDashboard> {
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading admin dashboard");
+    throw toMessage(error, "Admin dashboard");
   }
 }
 
@@ -130,7 +171,7 @@ export async function getAdminTransactions(token: string, filters: AdminTransact
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading transactions");
+    throw toMessage(error, "Transaction history");
   }
 }
 
@@ -143,7 +184,7 @@ export async function exportAdminTransactionsCsv(token: string, filters: AdminTr
     });
     return data as Blob;
   } catch (error) {
-    throw toMessage(error, "Exporting transactions CSV");
+    throw toMessage(error, "Transaction export");
   }
 }
 
@@ -154,7 +195,7 @@ export async function getAdminAuditLogs(token: string): Promise<AdminAuditLog[]>
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading audit logs");
+    throw toMessage(error, "Activity history");
   }
 }
 
@@ -165,7 +206,7 @@ export async function getAdminSessions(token: string): Promise<AdminSessionRecor
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading sessions");
+    throw toMessage(error, "Session details");
   }
 }
 
@@ -177,7 +218,7 @@ export async function getAdminUsers(token: string, search?: string): Promise<Adm
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading user insights");
+    throw toMessage(error, "Account details");
   }
 }
 
@@ -188,7 +229,7 @@ export async function updateAdminUserStatus(token: string, userId: number, activ
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Updating user ${userId}`);
+    throw toMessage(error, "Account update");
   }
 }
 
@@ -198,7 +239,7 @@ export async function deleteAdminUser(token: string, userId: number): Promise<vo
       headers: authHeaders(token)
     });
   } catch (error) {
-    throw toMessage(error, `Deleting user ${userId}`);
+    throw toMessage(error, "Account removal");
   }
 }
 
@@ -210,7 +251,7 @@ export async function getAdminRestaurants(token: string, search?: string): Promi
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading restaurants");
+    throw toMessage(error, "Restaurant list");
   }
 }
 
@@ -221,7 +262,7 @@ export async function updateAdminRestaurantVerification(token: string, restauran
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Updating restaurant ${restaurantId} verification`);
+    throw toMessage(error, "Restaurant verification");
   }
 }
 
@@ -232,7 +273,7 @@ export async function updateAdminRestaurantStatus(token: string, restaurantId: n
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Updating restaurant ${restaurantId} status`);
+    throw toMessage(error, "Restaurant update");
   }
 }
 
@@ -241,7 +282,7 @@ export async function login(request: LoginRequest): Promise<AuthSession> {
     const { data } = await api.post<AuthSession>("/auth/login", request);
     return data;
   } catch (error) {
-    throw toMessage(error, "Login");
+    throw toMessage(error, "Sign-in");
   }
 }
 
@@ -250,7 +291,7 @@ export async function forgotPassword(request: ForgotPasswordRequest): Promise<Fo
     const { data } = await api.post<ForgotPasswordResult>("/auth/forgot-password", request);
     return data;
   } catch (error) {
-    throw toMessage(error, "Password reset request");
+    throw toMessage(error, "Password reset");
   }
 }
 
@@ -269,7 +310,7 @@ export async function logoutSession(token: string): Promise<void> {
       headers: authHeaders(token)
     });
   } catch (error) {
-    throw toMessage(error, "Logout");
+    throw toMessage(error, "Sign-out");
   }
 }
 
@@ -287,7 +328,7 @@ export async function registerDeliveryPerson(request: DeliveryRegisterRequest): 
     const { data } = await api.post<AuthSession>("/delivery/register", request);
     return data;
   } catch (error) {
-    throw toMessage(error, "Delivery registration");
+    throw toMessage(error, "Rider registration");
   }
 }
 
@@ -298,7 +339,7 @@ export async function addRestaurantReview(token: string, payload: ReviewRequest)
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Submitting review");
+    throw toMessage(error, "Review submission");
   }
 }
 
@@ -309,7 +350,7 @@ export async function placeOrder(token: string, payload: PlaceOrderPayload): Pro
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Placing order");
+    throw toMessage(error, "Order placement");
   }
 }
 
@@ -320,7 +361,7 @@ export async function placeGroupOrder(token: string, payload: PlaceGroupOrderPay
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Placing combined order");
+    throw toMessage(error, "Order placement");
   }
 }
 
@@ -331,7 +372,7 @@ export async function verifyPayment(reference: string): Promise<Order> {
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Verifying payment");
+    throw toMessage(error, "Payment verification");
   }
 }
 
@@ -342,7 +383,7 @@ export async function getOwnerDashboard(token: string): Promise<OwnerDashboard> 
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading restaurant dashboard");
+    throw toMessage(error, "Restaurant dashboard");
   }
 }
 
@@ -353,7 +394,7 @@ export async function getOwnerRestaurantMenu(token: string, restaurantId: number
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Loading restaurant menu ${restaurantId}`);
+    throw toMessage(error, "Menu details");
   }
 }
 
@@ -368,7 +409,7 @@ export async function createOwnerMenuItem(
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Creating menu item");
+    throw toMessage(error, "Menu update");
   }
 }
 
@@ -384,7 +425,7 @@ export async function updateOwnerMenuItem(
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Updating menu item ${menuItemId}`);
+    throw toMessage(error, "Menu update");
   }
 }
 
@@ -402,7 +443,7 @@ export async function setOwnerMenuItemAvailability(
     );
     return data;
   } catch (error) {
-    throw toMessage(error, `Updating menu availability ${menuItemId}`);
+    throw toMessage(error, "Menu availability update");
   }
 }
 
@@ -416,7 +457,7 @@ export async function createOwnerBranch(
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Creating branch");
+    throw toMessage(error, "Branch creation");
   }
 }
 
@@ -430,7 +471,7 @@ export async function uploadOwnerImage(token: string, file: File): Promise<Uploa
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Uploading image");
+    throw toMessage(error, "Image upload");
   }
 }
 
@@ -441,7 +482,7 @@ export async function getDeliveryDashboard(token: string): Promise<DeliveryDashb
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Loading delivery dashboard");
+    throw toMessage(error, "Delivery dashboard");
   }
 }
 
@@ -452,7 +493,7 @@ export async function updateDeliveryLocation(token: string, location: DeliveryLo
     });
     return data;
   } catch (error) {
-    throw toMessage(error, "Updating live rider location");
+    throw toMessage(error, "Location update");
   }
 }
 
@@ -463,7 +504,7 @@ export async function claimDeliveryOrder(token: string, orderId: number): Promis
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Claiming delivery ${orderId}`);
+    throw toMessage(error, "Route claim");
   }
 }
 
@@ -474,7 +515,7 @@ export async function unclaimDeliveryOrder(token: string, orderId: number): Prom
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Unclaiming delivery ${orderId}`);
+    throw toMessage(error, "Route release");
   }
 }
 
@@ -485,7 +526,7 @@ export async function completeDeliveryOrder(token: string, orderId: number): Pro
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Completing delivery ${orderId}`);
+    throw toMessage(error, "Delivery completion");
   }
 }
 
@@ -496,7 +537,7 @@ export async function advanceOwnerOrder(token: string, orderId: number): Promise
     });
     return data;
   } catch (error) {
-    throw toMessage(error, `Advancing order ${orderId}`);
+    throw toMessage(error, "Order update");
   }
 }
 

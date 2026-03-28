@@ -53,7 +53,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
                 href={order.payment.authorizationUrl}
                 className="inline-flex items-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-cream"
               >
-                {order.payment.simulated ? "Open demo checkout" : "Continue to Paystack"}
+                Continue to payment
               </Link>
             ) : null}
           </div>
@@ -136,7 +136,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
             </p>
           </div>
           <p className="mt-6 rounded-2xl bg-olive/10 px-4 py-3 text-sm text-olive">
-            Status updates can be pushed in real time later using WebSockets without changing the timeline component structure.
+            This page will update as your order moves through preparation and delivery.
           </p>
         </aside>
       </section>

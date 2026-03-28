@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { advanceOwnerOrder, formatCurrency, getOwnerDashboard } from "@/lib/api";
+import { formatOrderStatus, formatPaymentStatus } from "@/lib/order-display";
 import { Order, OwnerDashboard } from "@/lib/types";
 
 export function OwnerDashboardClient() {
@@ -222,8 +223,8 @@ function OrderCard(props: { order: Order; busy: boolean; onAdvance: () => void }
           <p className="mt-2 text-sm text-ink/68">{props.order.deliveryAddress}</p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-semibold text-ink">{props.order.status}</p>
-          <p className="mt-2 text-sm text-ink/68">{props.order.paymentStatus}</p>
+          <p className="text-sm font-semibold text-ink">{formatOrderStatus(props.order.status)}</p>
+          <p className="mt-2 text-sm text-ink/68">{formatPaymentStatus(props.order.paymentStatus)}</p>
           <p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(props.order.total)}</p>
           <p className="mt-2 text-sm text-olive">Your allocation {formatCurrency(props.order.ownerAllocation)}</p>
         </div>

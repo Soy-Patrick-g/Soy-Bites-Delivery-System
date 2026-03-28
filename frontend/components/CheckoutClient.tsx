@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { useBrowseLocation } from "@/components/BrowseLocationProvider";
 import { useCart } from "@/components/CartProvider";
 import { LocationPicker } from "@/components/LocationPicker";
 import { LocationMap } from "@/components/LocationMap";
@@ -16,11 +17,12 @@ import type { LocationSelection } from "@/lib/location";
 export function CheckoutClient() {
   const router = useRouter();
   const { isReady, session } = useAuth();
+  const { location: browseLocation, isReady: isBrowseLocationReady } = useBrowseLocation();
   const { items, itemCount, setQuantity, subtotal, clearCart, isReady: isCartReady } = useCart();
   const [restaurants, setRestaurants] = useState<RestaurantSummary[]>([]);
   const [deliveryLocation, setDeliveryLocation] = useState<LocationSelection>({
-    address: "East Legon, Lagos Avenue 14, Accra",
-    city: "Accra",
+    address: "",
+    city: "",
     latitude: 5.56,
     longitude: -0.205
   });
@@ -30,11 +32,27 @@ export function CheckoutClient() {
   const showSlowLoadNotice = useSlowLoadNotice(isLoading || isSubmitting);
 
   useEffect(() => {
+    if (!isBrowseLocationReady || deliveryLocation.address) {
+      return;
+    }
+
+    setDeliveryLocation(browseLocation);
+  }, [browseLocation, deliveryLocation.address, isBrowseLocationReady]);
+
+  useEffect(() => {
+    if (!deliveryLocation.address) {
+      setIsLoading(false);
+      return;
+    }
+
     async function loadRestaurants() {
       try {
         setIsLoading(true);
         setError(null);
-        setRestaurants(await getRestaurants());
+        setRestaurants(await getRestaurants({
+          latitude: deliveryLocation.latitude,
+          longitude: deliveryLocation.longitude
+        }));
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "Unable to load checkout data");
       } finally {
@@ -43,7 +61,7 @@ export function CheckoutClient() {
     }
 
     void loadRestaurants();
-  }, []);
+  }, [deliveryLocation.address, deliveryLocation.latitude, deliveryLocation.longitude]);
 
   const restaurantById = useMemo(
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])),
@@ -144,7 +162,7 @@ export function CheckoutClient() {
     }
   }
 
-  if (!isReady || !isCartReady || isLoading) {
+  if (!isReady || !isCartReady || !isBrowseLocationReady || isLoading) {
     return (
       <Shell>
         <div className="space-y-3">
@@ -169,7 +187,7 @@ export function CheckoutClient() {
         <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
           <h2 className="text-2xl font-semibold text-ink">Login required</h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-ink/70">
-            Sign in as a customer before placing a real order. Your saved cart will stay here and be used for the combined checkout request.
+            Sign in to confirm your delivery address, place your order, and track it from one place.
           </p>
           <Link
             href={`/login?redirect=${encodeURIComponent("/checkout")}`}
@@ -195,7 +213,7 @@ export function CheckoutClient() {
         <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
           <h2 className="text-2xl font-semibold text-ink">Customer checkout only</h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-ink/70">
-            Only accounts with the `USER` role can place orders. Your current role is {session.role}, so ordering is blocked by both the UI and backend.
+            This checkout is available for customer accounts. Please switch to a customer account to place an order.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -222,7 +240,7 @@ export function CheckoutClient() {
         <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
           <h2 className="text-2xl font-semibold text-ink">Your cart is empty</h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-ink/70">
-            Go back to discover, browse foods from different restaurants, and add them to your cart. Then return here to complete a single combined checkout.
+            Browse restaurants, add the dishes you want, and return here when you are ready to place your order.
           </p>
           <Link
             href="/#marketplace"
@@ -247,7 +265,7 @@ export function CheckoutClient() {
               <div className="md:col-span-2">
                 <LocationPicker
                   title="Drop-off location"
-                  description="Search for the delivery address, use your current location, or click the map. The app keeps the exact coordinates behind the scenes for pricing and dispatch."
+                  description="Search for the delivery address, use your current location, or click the map to choose where your order should arrive."
                   value={deliveryLocation}
                   onChange={setDeliveryLocation}
                   heightClassName="h-[340px]"
@@ -263,7 +281,7 @@ export function CheckoutClient() {
                 <h2 className="mt-2 text-2xl font-semibold text-ink">Restaurants mapped against the drop-off point</h2>
               </div>
               <p className="max-w-md text-sm leading-6 text-ink/65">
-                Dashed lines show each restaurant leg feeding into this combined checkout while you refine the address with search or the map.
+                Review how each restaurant in your cart connects to the delivery address you selected.
               </p>
             </div>
             <LocationMap restaurants={mappedRestaurants} deliveryPoint={deliveryPoint} />

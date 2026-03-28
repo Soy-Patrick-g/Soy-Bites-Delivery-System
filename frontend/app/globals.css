@@ -4,6 +4,28 @@
 
 :root {
   color-scheme: light;
+  --color-luxury: 30 27 24;
+  --color-surface: 255 251 245;
+  --color-line: 48 36 28;
+  --color-muted: 103 88 73;
+  --shadow-color: 33 22 14;
+  --page-glow-top: rgba(239, 183, 54, 0.22);
+  --page-glow-right: rgba(171, 60, 39, 0.16);
+  --page-base-start: #f8f1e3;
+  --page-base-end: #efe3cd;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-luxury: 14 11 12;
+  --color-surface: 25 19 22;
+  --color-line: 126 101 82;
+  --color-muted: 189 170 153;
+  --shadow-color: 0 0 0;
+  --page-glow-top: rgba(214, 178, 104, 0.18);
+  --page-glow-right: rgba(160, 93, 69, 0.16);
+  --page-base-start: #120f10;
+  --page-base-end: #1b1517;
 }
 
 html {
@@ -14,14 +36,21 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top left, rgba(239, 183, 54, 0.22), transparent 30%),
-    radial-gradient(circle at right center, rgba(171, 60, 39, 0.16), transparent 25%),
-    linear-gradient(180deg, #f8f1e3 0%, #f5e9d3 46%, #efe3cd 100%);
+    radial-gradient(circle at top left, var(--page-glow-top), transparent 30%),
+    radial-gradient(circle at right center, var(--page-glow-right), transparent 25%),
+    linear-gradient(180deg, var(--page-base-start) 0%, color-mix(in srgb, var(--page-base-start) 55%, var(--page-base-end)) 46%, var(--page-base-end) 100%);
   color: #1e1b18;
+  transition:
+    background 240ms ease,
+    color 240ms ease;
 }
 
 img {
   max-width: 100%;
+}
+
+::selection {
+  background: rgba(239, 183, 54, 0.35);
 }
 
 .mesh-card {
@@ -32,4 +61,182 @@ img {
 
 .hero-grid {
   background-size: 18px 18px;
+}
+
+@layer components {
+  .app-shell {
+    @apply mx-auto max-w-7xl px-4 sm:px-6;
+  }
+
+  .surface-card {
+    @apply rounded-[32px] border shadow-soft backdrop-blur-sm;
+    border-color: rgb(var(--color-line) / 0.3);
+    background-color: rgb(var(--color-surface) / 0.88);
+  }
+
+  .surface-panel {
+    @apply rounded-[28px] border shadow-soft backdrop-blur-sm;
+    border-color: rgb(var(--color-line) / 0.25);
+    background-color: rgb(var(--color-surface) / 0.72);
+  }
+
+  .eyebrow {
+    @apply text-sm font-semibold uppercase tracking-[0.22em] text-olive;
+  }
+
+  .primary-action {
+    @apply inline-flex rounded-full bg-ember px-6 py-3 text-sm font-semibold text-white transition hover:bg-ember/90;
+  }
+
+  .secondary-action {
+    @apply inline-flex rounded-full border px-6 py-3 text-sm font-semibold transition;
+    border-color: rgb(var(--color-line) / 0.3);
+  }
+
+  .secondary-action:hover {
+    background-color: rgb(var(--color-surface) / 0.9);
+  }
+
+  .gold-action {
+    @apply inline-flex rounded-full bg-citrus px-5 py-3 text-sm font-semibold text-ink transition hover:bg-citrus/90;
+  }
+
+  .muted-copy {
+    @apply text-sm leading-7;
+    color: rgb(var(--color-muted));
+  }
+}
+
+.dark body {
+  color: #f2e6d6;
+}
+
+.dark .mesh-card {
+  background-image:
+    linear-gradient(135deg, rgba(30, 24, 26, 0.88), rgba(21, 17, 19, 0.82)),
+    radial-gradient(circle at top right, rgba(214, 178, 104, 0.16), transparent 30%);
+}
+
+.dark .bg-white {
+  background-color: rgba(25, 19, 22, 1) !important;
+}
+
+.dark .bg-white\/92 {
+  background-color: rgba(25, 19, 22, 0.92) !important;
+}
+
+.dark .bg-white\/90 {
+  background-color: rgba(25, 19, 22, 0.90) !important;
+}
+
+.dark .bg-white\/85 {
+  background-color: rgba(25, 19, 22, 0.85) !important;
+}
+
+.dark .bg-white\/80 {
+  background-color: rgba(25, 19, 22, 0.80) !important;
+}
+
+.dark .bg-white\/70 {
+  background-color: rgba(25, 19, 22, 0.70) !important;
+}
+
+.dark .bg-white\/10 {
+  background-color: rgba(242, 230, 214, 0.10) !important;
+}
+
+.dark .bg-white\/8 {
+  background-color: rgba(242, 230, 214, 0.08) !important;
+}
+
+.dark .bg-white\/6 {
+  background-color: rgba(242, 230, 214, 0.06) !important;
+}
+
+.dark .bg-white\/5 {
+  background-color: rgba(242, 230, 214, 0.05) !important;
+}
+
+.dark .bg-cream {
+  background-color: rgba(40, 31, 34, 1) !important;
+}
+
+.dark .bg-cream\/80 {
+  background-color: rgba(40, 31, 34, 0.80) !important;
+}
+
+.dark .bg-citrus\/30 {
+  background-color: rgba(214, 178, 104, 0.20) !important;
+}
+
+.dark .bg-ink {
+  background-color: rgba(14, 11, 12, 1) !important;
+}
+
+.dark .bg-ink\/85 {
+  background-color: rgba(14, 11, 12, 0.85) !important;
+}
+
+.dark .bg-ink\/65 {
+  background-color: rgba(14, 11, 12, 0.65) !important;
+}
+
+.dark .bg-ink\/55 {
+  background-color: rgba(14, 11, 12, 0.55) !important;
+}
+
+.dark .bg-ink\/40 {
+  background-color: rgba(242, 230, 214, 0.08) !important;
+}
+
+.dark .bg-ink\/10 {
+  background-color: rgba(14, 11, 12, 0.10) !important;
+}
+
+.dark .text-ink {
+  color: rgba(242, 230, 214, 1) !important;
+}
+
+.dark .text-ink\/80 {
+  color: rgba(242, 230, 214, 0.80) !important;
+}
+
+.dark .text-ink\/70 {
+  color: rgba(189, 170, 153, 0.70) !important;
+}
+
+.dark .text-ink\/68,
+.dark .text-ink\/65,
+.dark .text-ink\/60,
+.dark .text-ink\/55 {
+  color: rgba(189, 170, 153, 0.72) !important;
+}
+
+.dark .text-cream {
+  color: rgba(242, 230, 214, 1) !important;
+}
+
+.dark .text-cream\/80,
+.dark .text-cream\/78,
+.dark .text-cream\/75,
+.dark .text-cream\/72,
+.dark .text-cream\/70,
+.dark .text-cream\/65,
+.dark .text-cream\/60 {
+  color: rgba(222, 207, 189, 0.78) !important;
+}
+
+.dark .border-ink\/10,
+.dark .border-ink\/15 {
+  border-color: rgba(126, 101, 82, 0.35) !important;
+}
+
+.dark .border-white\/50 {
+  border-color: rgba(242, 230, 214, 0.16) !important;
+}
+
+.dark .border-white\/15,
+.dark .border-white\/10,
+.dark .border-white\/8 {
+  border-color: rgba(242, 230, 214, 0.12) !important;
 }

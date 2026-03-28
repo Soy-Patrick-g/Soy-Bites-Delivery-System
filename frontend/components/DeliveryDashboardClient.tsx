@@ -9,6 +9,7 @@ import type { MapRouteLine, MapStop } from "@/components/LocationMap";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { claimDeliveryOrder, completeDeliveryOrder, formatCurrency, getDeliveryDashboard, unclaimDeliveryOrder, updateDeliveryLocation } from "@/lib/api";
 import { getDrivingRoute } from "@/lib/location";
+import { formatOrderStatus, formatPaymentStatus } from "@/lib/order-display";
 import { DeliveryDashboard, DeliveryLocation, Order } from "@/lib/types";
 
 export function DeliveryDashboardClient() {
@@ -381,8 +382,8 @@ export function DeliveryDashboardClient() {
         <div className="rounded-[32px] border border-white/50 bg-white/90 p-5 shadow-soft sm:p-6 lg:p-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-olive">Dispatch board</p>
-              <h2 className="mt-2 text-3xl font-semibold text-ink">Claim ready orders and finish deliveries</h2>
+              <p className="text-sm uppercase tracking-[0.18em] text-olive">Available routes</p>
+              <h2 className="mt-2 text-3xl font-semibold text-ink">Claim ready routes and complete deliveries</h2>
             </div>
             <Link href="/delivery/register" className="text-sm font-semibold text-olive">
               Register another rider
@@ -521,8 +522,8 @@ function DeliveryCard(props: {
           <p className="mt-1 text-sm text-ink/68">{order.deliveryAddress}</p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-semibold text-ink">{order.status}</p>
-          <p className="mt-2 text-sm text-ink/68">{order.paymentStatus}</p>
+          <p className="text-sm font-semibold text-ink">{formatOrderStatus(order.status)}</p>
+          <p className="mt-2 text-sm text-ink/68">{formatPaymentStatus(order.paymentStatus)}</p>
           <p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(totalAmount)}</p>
           <p className="mt-1 text-xs uppercase tracking-[0.14em] text-ink/55">{totalItems} items</p>
         </div>

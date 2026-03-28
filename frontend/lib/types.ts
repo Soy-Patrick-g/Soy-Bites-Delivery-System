@@ -9,6 +9,11 @@ export type MenuItem = {
   spicy: boolean;
 };
 
+export type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
 export type CartItem = {
   menuItemId: number;
   restaurantId: number;
@@ -72,7 +77,6 @@ export type PaymentInitialization = {
   provider: string;
   reference: string;
   authorizationUrl: string;
-  simulated: boolean;
 };
 
 export type OrderItem = {

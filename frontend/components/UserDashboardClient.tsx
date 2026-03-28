@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { AppShell } from "@/components/layout/AppShell";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { formatCurrency, getCurrentUserOrderHistory } from "@/lib/api";
+import { formatOrderStatus, formatPaymentStatus } from "@/lib/order-display";
 import { Order } from "@/lib/types";
 
 export function UserDashboardClient() {
@@ -41,7 +42,7 @@ export function UserDashboardClient() {
 
   if (!isReady || isLoading) {
     return (
-      <Shell>
+      <AppShell>
         <div className="space-y-3">
           <p className="text-sm text-ink/70">Loading your dashboard...</p>
           {showSlowLoadNotice ? (
@@ -50,20 +51,24 @@ export function UserDashboardClient() {
             </p>
           ) : null}
         </div>
-      </Shell>
+      </AppShell>
     );
   }
 
   if (!session) {
     return (
-      <Shell>
+      <AppShell>
+        <div className="mb-8">
+          <p className="eyebrow">Dashboard</p>
+          <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Your account, orders, and next steps</h1>
+        </div>
         <GateCard
           title="Login required"
-          body="Sign in to see your personal order history and the other platform portals."
+          body="Sign in to see your order history, receipts, and account activity."
           href="/login?redirect=%2Fdashboard"
           action="Login"
         />
-      </Shell>
+      </AppShell>
     );
   }
 
@@ -82,25 +87,33 @@ export function UserDashboardClient() {
           : "Open delivery dashboard";
     const portalBody =
       session.role === "ADMIN"
-        ? "Admins use the admin dashboard for platform analytics."
+        ? "Admin accounts use the admin dashboard."
         : session.role === "RESTAURANT"
-          ? "Restaurant owners use the restaurant dashboard to process orders."
-          : "Delivery personnel use the delivery dashboard to claim routes and complete drop-offs.";
+          ? "Restaurant accounts use the restaurant dashboard to manage orders and menus."
+          : "Delivery accounts use the delivery dashboard to claim routes and complete deliveries.";
 
     return (
-      <Shell>
+      <AppShell>
+        <div className="mb-8">
+          <p className="eyebrow">Dashboard</p>
+          <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Your account, orders, and next steps</h1>
+        </div>
         <GateCard
-          title="Role-based portal"
+          title="Different account type"
           body={portalBody}
           href={portalHref}
           action={portalAction}
         />
-      </Shell>
+      </AppShell>
     );
   }
 
   return (
-    <Shell>
+    <AppShell>
+      <div className="mb-8">
+        <p className="eyebrow">Dashboard</p>
+        <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Your account, orders, and next steps</h1>
+      </div>
       {error ? <p className="mb-6 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
       <section className="rounded-[32px] border border-white/50 bg-white/90 p-5 shadow-soft sm:p-6 lg:p-8">
@@ -125,8 +138,8 @@ export function UserDashboardClient() {
                     <p className="mt-2 text-sm text-ink/68">{order.deliveryAddress}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-ink">{order.status}</p>
-                    <p className="mt-2 text-sm text-ink/68">{order.paymentStatus}</p>
+                    <p className="text-sm font-semibold text-ink">{formatOrderStatus(order.status)}</p>
+                    <p className="mt-2 text-sm text-ink/68">{formatPaymentStatus(order.paymentStatus)}</p>
                     <p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(order.total)}</p>
                   </div>
                 </div>
@@ -170,19 +183,7 @@ export function UserDashboardClient() {
           )}
         </div>
       </section>
-    </Shell>
-  );
-}
-
-function Shell({ children }: { children: ReactNode }) {
-  return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
-      <div className="mb-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">Dashboard</p>
-        <h1 className="mt-2 font-serif text-4xl text-ink sm:text-5xl">Your account, orders, and next steps</h1>
-      </div>
-      {children}
-    </main>
+    </AppShell>
   );
 }
 

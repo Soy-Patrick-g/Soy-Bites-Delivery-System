@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ReceiptActions } from "@/components/ReceiptActions";
 import { formatCurrency, getOrderBatch } from "@/lib/api";
+import { formatOrderStatus, formatPaymentStatus } from "@/lib/order-display";
 
 type ReceiptPageProps = {
   params: Promise<{ id: string }>;
@@ -45,7 +46,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
             </div>
             <div className="rounded-[28px] bg-ink px-6 py-5 text-cream">
               <p className="text-sm text-cream/60">Payment</p>
-              <p className="mt-2 text-xl font-semibold">{paymentStatus}</p>
+              <p className="mt-2 text-xl font-semibold">{formatPaymentStatus(paymentStatus)}</p>
               <p className="mt-2 text-sm text-cream/65">{paymentReference}</p>
             </div>
           </div>
@@ -83,7 +84,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-olive">Restaurant order #{order.id}</p>
                     <h3 className="mt-2 text-2xl font-semibold text-ink">{order.restaurantName}</h3>
                     <p className="mt-2 text-sm text-ink/65">
-                      Status {order.status} • Payment {order.paymentStatus}
+                      Status {formatOrderStatus(order.status)} • Payment {formatPaymentStatus(order.paymentStatus)}
                     </p>
                   </div>
                   <div className="rounded-3xl bg-white px-5 py-4 text-sm text-ink shadow-soft">

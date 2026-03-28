@@ -14,19 +14,19 @@ export default function RestaurantRegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [form, setForm] = useState({
-    fullName: "Vendor Owner",
-    email: "newvendor@foodhub.dev",
+    fullName: "",
+    email: "",
     password: "",
-    restaurantName: "Coastal Bites",
-    description: "Fresh bowls, grilled mains, and quick lunch delivery for busy neighborhoods.",
-    cuisine: "Contemporary African",
-    address: "Spintex Road 12",
-    city: "Accra"
+    restaurantName: "",
+    description: "",
+    cuisine: "",
+    address: "",
+    city: ""
   });
   const [confirmPassword, setConfirmPassword] = useState("");
   const [location, setLocation] = useState<LocationSelection>({
-    address: "Spintex Road 12, Accra",
-    city: "Accra",
+    address: "",
+    city: "",
     latitude: 5.6037,
     longitude: -0.187
   });
@@ -72,12 +72,8 @@ export default function RestaurantRegisterPage() {
           <p className="text-sm uppercase tracking-[0.22em] text-citrus">Restaurant onboarding</p>
           <h1 className="mt-3 font-serif text-5xl">Create your owner account and storefront together</h1>
           <p className="mt-5 text-sm leading-7 text-cream/72">
-            This will create a `RESTAURANT` user and an attached restaurant profile so you can start receiving and processing orders from the dashboard.
+            Open your restaurant account, add your storefront details, and get ready to welcome customers online.
           </p>
-          <div className="mt-8 rounded-3xl bg-white/8 p-5 text-sm">
-            <p className="font-semibold">Already have a vendor account?</p>
-            <p className="mt-2 text-cream/70">Use `vendor@foodhub.dev / Password123!` on the login page.</p>
-          </div>
         </section>
 
         <section className="rounded-[36px] border border-white/50 bg-white/90 p-8 shadow-soft">
@@ -95,7 +91,7 @@ export default function RestaurantRegisterPage() {
             <div className="md:col-span-2">
               <LocationPicker
                 title="Restaurant location"
-                description="Choose the storefront address from the map, search, or your current location. The app will keep the coordinates behind the scenes for delivery distance and routing."
+                description="Choose your storefront address from the map, search by address, or use your current location."
                 value={location}
                 onChange={(nextLocation) => {
                   setLocation(nextLocation);

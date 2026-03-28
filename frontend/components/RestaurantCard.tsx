@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
-import { formatCurrency, getRestaurant } from "@/lib/api";
+import { formatCurrency } from "@/lib/api";
 import { RestaurantPreviewItem, RestaurantSummary } from "@/lib/types";
 
 type RestaurantCardProps = {
@@ -12,38 +11,13 @@ type RestaurantCardProps = {
 
 export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const { addItem, getQuantity } = useCart();
-  const [previewItems, setPreviewItems] = useState<RestaurantPreviewItem[]>(restaurant.featuredItems ?? []);
-
-  useEffect(() => {
-    async function loadFreshMenu() {
-      try {
-        const detail = await getRestaurant(String(restaurant.id));
-        setPreviewItems(
-          [...detail.menu]
-            .sort((left, right) => right.id - left.id)
-            .slice(0, 3)
-            .map((item) => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            imageUrl: item.imageUrl
-            }))
-        );
-      } catch {
-        setPreviewItems(restaurant.featuredItems ?? []);
-      }
-    }
-
-    void loadFreshMenu();
-  }, [restaurant.featuredItems, restaurant.id]);
+  const previewItems: RestaurantPreviewItem[] = restaurant.featuredItems ?? [];
 
   return (
-    <article className="rounded-[28px] border border-ink/10 bg-white/90 p-6 shadow-soft">
+    <article className="surface-panel p-6">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-olive">
-            {restaurant.cuisine}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-olive">{restaurant.cuisine}</p>
           {restaurant.brandName ? (
             <p className="mt-2 text-sm font-semibold text-ink/60">{restaurant.brandName}</p>
           ) : null}
@@ -62,7 +36,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
           <div key={item.id} className="grid grid-cols-[72px_1fr] gap-3 rounded-2xl bg-cream/80 px-3 py-3">
             <div className="relative h-[72px] overflow-hidden rounded-2xl bg-cream">
               {item.imageUrl ? (
-                <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                <img src={item.imageUrl} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
               ) : (
                 <div className="h-full w-full bg-cream" />
               )}
@@ -100,13 +74,13 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
       <div className="mt-5 flex flex-wrap gap-3">
         <Link
           href={`/restaurants/${restaurant.id}`}
-          className="rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink transition hover:bg-white"
+          className="secondary-action px-4 py-2"
         >
           View full menu
         </Link>
         <Link
           href="/checkout"
-          className="rounded-full bg-citrus px-4 py-2 text-sm font-semibold text-ink transition hover:bg-citrus/90"
+          className="gold-action px-4 py-2"
         >
           Go to cart
         </Link>
