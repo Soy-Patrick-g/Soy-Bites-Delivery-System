@@ -5,7 +5,7 @@ import { useTheme } from "@/components/ThemeProvider";
 export function ThemeToggle() {
   const { isReady, theme, toggleTheme } = useTheme();
   const isDark = isReady ? theme === "dark" : false;
-  const nextLabel = isDark ? "☀️ Light mode" : "🌙 Dark mode";
+  const nextLabel = isDark ? "☀️" : "🌙";
 
   return (
     <button
