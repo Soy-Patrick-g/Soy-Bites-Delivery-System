@@ -1,13 +1,41 @@
 import axios from "axios";
-import type { AuthSession, ForgotPasswordRequest, ForgotPasswordResult, LoginRequest, ResetPasswordRequest } from "@/lib/types";
+import type {
+  AuthSession,
+  ForgotPasswordRequest,
+  ForgotPasswordResult,
+  LoginRequest,
+  RegisterUserRequest,
+  ResetPasswordRequest,
+  VerifyResetTokenRequest,
+  VerifyResetTokenResult
+} from "@/lib/types";
 
 const authApi = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api"
 });
 
+function extractServerMessage(data: unknown): string | null {
+  if (typeof data === "string" && data.trim()) {
+    return data;
+  }
+
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    if (typeof record.message === "string" && record.message.trim()) {
+      return record.message;
+    }
+    if (typeof record.error === "string" && record.error.trim()) {
+      return record.error;
+    }
+  }
+
+  return null;
+}
+
 function toMessage(error: unknown, label: string): Error {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
+    const serverMessage = extractServerMessage(error.response?.data);
 
     if (!error.response) {
       return new Error("We couldn’t connect right now. Please check your connection and try again.");
@@ -18,7 +46,7 @@ function toMessage(error: unknown, label: string): Error {
     }
 
     if (status === 403) {
-      return new Error("This action is not available for your account.");
+      return new Error(serverMessage ?? "This action is not available for your account.");
     }
 
     if (status === 404) {
@@ -30,10 +58,10 @@ function toMessage(error: unknown, label: string): Error {
     }
 
     if (status && status >= 500) {
-      return new Error(`${label} is temporarily unavailable. Please try again soon.`);
+      return new Error(serverMessage ?? `${label} is temporarily unavailable. Please try again soon.`);
     }
 
-    return new Error(`${label} could not be completed. Please review your details and try again.`);
+    return new Error(serverMessage ?? `${label} could not be completed. Please review your details and try again.`);
   }
 
   return error instanceof Error ? error : new Error(`${label} could not be completed right now.`);
@@ -45,6 +73,21 @@ export async function login(request: LoginRequest): Promise<AuthSession> {
     return data;
   } catch (error) {
     throw toMessage(error, "Sign-in");
+  }
+}
+
+export async function registerUser(request: RegisterUserRequest): Promise<AuthSession> {
+  try {
+    const { data } = await authApi.post<AuthSession>("/auth/register", {
+      fullName: request.fullName,
+      email: request.email,
+      password: request.password,
+      confirmPassword: request.confirmPassword,
+      role: "USER"
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Account creation");
   }
 }
 
@@ -63,5 +106,14 @@ export async function resetPassword(request: ResetPasswordRequest): Promise<{ me
     return data;
   } catch (error) {
     throw toMessage(error, "Password reset");
+  }
+}
+
+export async function verifyResetToken(request: VerifyResetTokenRequest): Promise<VerifyResetTokenResult> {
+  try {
+    const { data } = await authApi.post<VerifyResetTokenResult>("/auth/verify-reset-token", request);
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Reset code verification");
   }
 }

@@ -20,11 +20,32 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const savedTheme = window.localStorage.getItem(STORAGE_KEY);
-    const initialTheme = savedTheme === "dark" ? "dark" : "light";
+    const initialTheme =
+      savedTheme === "dark" || savedTheme === "light"
+        ? savedTheme
+        : mediaQuery.matches
+          ? "dark"
+          : "light";
+
     document.documentElement.classList.toggle("dark", initialTheme === "dark");
     setThemeState(initialTheme);
     setIsReady(true);
+
+    const handleSystemThemeChange = (event: MediaQueryListEvent) => {
+      const userPreference = window.localStorage.getItem(STORAGE_KEY);
+      if (userPreference === "dark" || userPreference === "light") {
+        return;
+      }
+
+      const nextTheme: Theme = event.matches ? "dark" : "light";
+      document.documentElement.classList.toggle("dark", nextTheme === "dark");
+      setThemeState(nextTheme);
+    };
+
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener("change", handleSystemThemeChange);
   }, []);
 
   const value = useMemo<ThemeContextValue>(() => ({

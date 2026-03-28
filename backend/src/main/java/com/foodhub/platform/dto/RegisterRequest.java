@@ -12,6 +12,7 @@ public record RegisterRequest(
         @NotBlank
         @Pattern(regexp = ValidationPatterns.STRONG_PASSWORD, message = ValidationPatterns.STRONG_PASSWORD_MESSAGE)
         String password,
+        @NotBlank String confirmPassword,
         @NotNull UserRole role,
         Double latitude,
         Double longitude

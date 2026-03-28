@@ -62,6 +62,7 @@ export default function ForgotPasswordPage() {
             {successMessage ? (
               <div className="space-y-3 rounded-2xl bg-olive/10 px-4 py-4 text-sm text-ink">
                 <p>{successMessage}</p>
+                <p>Check your email for a 5-character reset code, then continue below.</p>
                 {previewResetUrl ? (
                   <a
                     href={previewResetUrl}
@@ -69,7 +70,11 @@ export default function ForgotPasswordPage() {
                   >
                     Continue to reset password
                   </a>
-                ) : null}
+                ) : (
+                  <Link href="/reset-password" className="inline-flex font-semibold text-olive">
+                    Enter reset code
+                  </Link>
+                )}
               </div>
             ) : null}
 
@@ -84,6 +89,9 @@ export default function ForgotPasswordPage() {
 
       <div className="mt-6 text-sm text-ink/68">
         <div className="flex flex-wrap gap-4">
+          <Link href="/reset-password" className="inline-flex font-semibold text-olive">
+            I already have a reset code
+          </Link>
           <Link href="/login" className="inline-flex font-semibold text-olive">
             Back to sign in
           </Link>

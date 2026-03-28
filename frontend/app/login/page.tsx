@@ -126,6 +126,9 @@ export default function LoginPage() {
       <div className="mt-6 text-sm text-ink/68">
         <p>Need an account? Choose the option that matches how you use FoodHub.</p>
         <div className="mt-4 flex flex-wrap gap-4">
+          <Link href="/register" className="inline-flex font-semibold text-olive">
+            Create customer account
+          </Link>
           <Link href="/" className="inline-flex font-semibold text-olive">
             Back to discover
           </Link>

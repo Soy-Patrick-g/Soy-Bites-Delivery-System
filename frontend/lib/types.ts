@@ -276,6 +276,13 @@ export type LoginRequest = {
   password: string;
 };
 
+export type RegisterUserRequest = {
+  fullName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
+
 export type ForgotPasswordRequest = {
   email: string;
 };
@@ -290,6 +297,15 @@ export type ResetPasswordRequest = {
   token: string;
   password: string;
   confirmPassword: string;
+};
+
+export type VerifyResetTokenRequest = {
+  token: string;
+};
+
+export type VerifyResetTokenResult = {
+  valid: boolean;
+  message: string;
 };
 
 export type PlaceOrderPayload = {

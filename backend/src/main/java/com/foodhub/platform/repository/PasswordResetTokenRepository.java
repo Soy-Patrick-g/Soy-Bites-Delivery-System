@@ -10,5 +10,7 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
     @EntityGraph(attributePaths = {"user"})
     Optional<PasswordResetToken> findByToken(String token);
 
+    boolean existsByToken(String token);
+
     void deleteByUser_Id(Long userId);
 }
