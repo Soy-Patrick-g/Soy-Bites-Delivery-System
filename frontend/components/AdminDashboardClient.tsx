@@ -11,17 +11,22 @@ import {
   exportAdminTransactionsCsv,
   formatCurrency,
   getAdminAuditLogs,
+  getAdminDeliveryCommissions,
+  getAdminDeliverySettings,
   getAdminRestaurants,
   getAdminSessions,
   getAdminTransactions,
   getAdminUsers,
-  getDashboard
-  ,
+  getDashboard,
+  updateAdminDeliveryCommissionStatus,
+  updateAdminDeliverySettings,
   updateAdminRestaurantStatus,
   updateAdminRestaurantVerification,
   updateAdminUserStatus
 } from "@/lib/api";
 import {
+  AdminDeliveryCommission,
+  AdminDeliverySettings,
   AdminAuditLog,
   AdminDashboard,
   AdminRestaurant,
@@ -53,6 +58,9 @@ export function AdminDashboardClient() {
   const [sessions, setSessions] = useState<AdminSessionRecord[]>([]);
   const [users, setUsers] = useState<AdminUserInsight[]>([]);
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
+  const [deliveryCommissions, setDeliveryCommissions] = useState<AdminDeliveryCommission[]>([]);
+  const [deliverySettings, setDeliverySettings] = useState<AdminDeliverySettings | null>(null);
+  const [deliverySettingsDraft, setDeliverySettingsDraft] = useState<AdminDeliverySettings | null>(null);
   const [draftFilters, setDraftFilters] = useState<AdminTransactionFilters>(DEFAULT_FILTERS);
   const [filters, setFilters] = useState<AdminTransactionFilters>(DEFAULT_FILTERS);
   const [userSearchDraft, setUserSearchDraft] = useState("");
@@ -64,6 +72,7 @@ export function AdminDashboardClient() {
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [isUsersLoading, setIsUsersLoading] = useState(true);
   const [isRestaurantsLoading, setIsRestaurantsLoading] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [busyActionKey, setBusyActionKey] = useState<string | null>(null);
@@ -85,13 +94,24 @@ export function AdminDashboardClient() {
       try {
         setIsLoading(true);
         setError(null);
-        const [nextDashboard, nextTransactions, nextAuditLogs, nextSessions, nextUsers, nextRestaurants] = await Promise.all([
+        const [
+          nextDashboard,
+          nextTransactions,
+          nextAuditLogs,
+          nextSessions,
+          nextUsers,
+          nextRestaurants,
+          nextDeliveryCommissions,
+          nextDeliverySettings
+        ] = await Promise.all([
           getDashboard(adminToken),
           getAdminTransactions(adminToken, filters),
           getAdminAuditLogs(adminToken),
           getAdminSessions(adminToken),
           getAdminUsers(adminToken, userSearch),
-          getAdminRestaurants(adminToken, restaurantSearch)
+          getAdminRestaurants(adminToken, restaurantSearch),
+          getAdminDeliveryCommissions(adminToken),
+          getAdminDeliverySettings(adminToken)
         ]);
 
         if (isCancelled) {
@@ -104,6 +124,9 @@ export function AdminDashboardClient() {
         setSessions(nextSessions);
         setUsers(nextUsers);
         setRestaurants(nextRestaurants);
+        setDeliveryCommissions(nextDeliveryCommissions);
+        setDeliverySettings(nextDeliverySettings);
+        setDeliverySettingsDraft(nextDeliverySettings);
       } catch (nextError) {
         if (!isCancelled) {
           setError(nextError instanceof Error ? nextError.message : "Unable to load admin dashboard");
@@ -128,6 +151,26 @@ export function AdminDashboardClient() {
       window.clearInterval(intervalId);
     };
   }, [filters, isReady, refreshKey, restaurantSearch, session, userSearch]);
+
+  useEffect(() => {
+    if (!isReady || !session || session.role !== "ADMIN") {
+      return;
+    }
+
+    const websocketUrl = buildAdminWebSocketUrl(session.token);
+    if (!websocketUrl) {
+      return;
+    }
+
+    const socket = new WebSocket(websocketUrl);
+    socket.onmessage = () => {
+      setRefreshKey((current) => current + 1);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [isReady, session]);
 
   async function handleTransactionFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -220,6 +263,44 @@ export function AdminDashboardClient() {
       setError(nextError instanceof Error ? nextError.message : "Unable to update restaurant status");
     } finally {
       setBusyActionKey(null);
+    }
+  }
+
+  async function handleUpdateCommissionStatus(commission: AdminDeliveryCommission, paymentStatus: "PENDING" | "PAID") {
+    if (!session) {
+      return;
+    }
+
+    try {
+      setBusyActionKey(`commission-${commission.id}`);
+      setError(null);
+      const updated = await updateAdminDeliveryCommissionStatus(session.token, commission.id, { paymentStatus });
+      setDeliveryCommissions((current) => current.map((entry) => (entry.id === commission.id ? updated : entry)));
+      setRefreshKey((current) => current + 1);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to update commission payment status");
+    } finally {
+      setBusyActionKey(null);
+    }
+  }
+
+  async function handleSaveDeliverySettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session || !deliverySettingsDraft) {
+      return;
+    }
+
+    try {
+      setIsSavingSettings(true);
+      setError(null);
+      const updated = await updateAdminDeliverySettings(session.token, deliverySettingsDraft);
+      setDeliverySettings(updated);
+      setDeliverySettingsDraft(updated);
+      setRefreshKey((current) => current + 1);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to update delivery settings");
+    } finally {
+      setIsSavingSettings(false);
     }
   }
 
@@ -381,6 +462,148 @@ export function AdminDashboardClient() {
           value={formatCurrency(dashboard.chargebacksTotal)}
           detail="Tracked chargeback volume"
         />
+      </section>
+
+      <section className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardStat label="Completed deliveries" value={String(dashboard.completedDeliveries)} hint="Deliveries that have generated commission records" />
+        <DashboardStat label="Commission owed" value={formatCurrency(dashboard.totalCommissionOwed)} hint="Pending commission liability across all riders" />
+        <DashboardStat label="Pending commissions" value={formatCurrency(dashboard.pendingCommissionTotal)} hint="Awaiting payout confirmation" />
+        <DashboardStat label="Paid commissions" value={formatCurrency(dashboard.paidCommissionTotal)} hint="Already settled to riders" />
+      </section>
+
+      <section className="mt-10 grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="rounded-[36px] border border-white/10 bg-white/6 p-5 shadow-soft sm:p-8">
+          <div>
+            <p className="text-sm uppercase tracking-[0.18em] text-citrus">Delivery settings</p>
+            <h2 className="mt-2 text-3xl font-semibold">Pricing and commission controls</h2>
+          </div>
+
+          {deliverySettingsDraft ? (
+            <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleSaveDeliverySettings}>
+              <FilterInput label="Base delivery fee">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliverySettingsDraft.deliveryBaseFee}
+                  onChange={(event) => setDeliverySettingsDraft((current) => current ? { ...current, deliveryBaseFee: Number(event.target.value) } : current)}
+                  className={FIELD_CLASS}
+                />
+              </FilterInput>
+              <FilterInput label="Fee per km">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliverySettingsDraft.deliveryFeePerKm}
+                  onChange={(event) => setDeliverySettingsDraft((current) => current ? { ...current, deliveryFeePerKm: Number(event.target.value) } : current)}
+                  className={FIELD_CLASS}
+                />
+              </FilterInput>
+              <FilterInput label="Free delivery under (km)">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={deliverySettingsDraft.freeDeliveryUnderKm}
+                  onChange={(event) => setDeliverySettingsDraft((current) => current ? { ...current, freeDeliveryUnderKm: Number(event.target.value) } : current)}
+                  className={FIELD_CLASS}
+                />
+              </FilterInput>
+              <FilterInput label="Commission model">
+                <select
+                  value={deliverySettingsDraft.commissionType}
+                  onChange={(event) => setDeliverySettingsDraft((current) => current ? {
+                    ...current,
+                    commissionType: event.target.value as AdminDeliverySettings["commissionType"]
+                  } : current)}
+                  className={FIELD_CLASS}
+                >
+                  <option value="DELIVERY_FEE_PERCENTAGE">Percentage of delivery fee</option>
+                  <option value="FIXED">Fixed amount</option>
+                </select>
+              </FilterInput>
+              <FilterInput label="Fixed commission amount">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliverySettingsDraft.fixedCommissionAmount}
+                  onChange={(event) => setDeliverySettingsDraft((current) => current ? { ...current, fixedCommissionAmount: Number(event.target.value) } : current)}
+                  className={FIELD_CLASS}
+                />
+              </FilterInput>
+              <FilterInput label="Commission percentage">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliverySettingsDraft.commissionPercentage}
+                  onChange={(event) => setDeliverySettingsDraft((current) => current ? { ...current, commissionPercentage: Number(event.target.value) } : current)}
+                  className={FIELD_CLASS}
+                />
+              </FilterInput>
+
+              <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="inline-flex rounded-full bg-citrus px-5 py-2 text-sm font-semibold text-ink disabled:opacity-60"
+                >
+                  {isSavingSettings ? "Saving..." : "Save delivery settings"}
+                </button>
+                {deliverySettings ? (
+                  <p className="text-sm text-cream/68">
+                    Live default fee preview: {formatCurrency(deliverySettings.deliveryBaseFee)} + {formatCurrency(deliverySettings.deliveryFeePerKm)} per km
+                  </p>
+                ) : null}
+              </div>
+            </form>
+          ) : (
+            <p className="mt-6 text-sm text-cream/70">Loading delivery settings...</p>
+          )}
+        </div>
+
+        <div className="rounded-[36px] border border-white/10 bg-white/6 p-5 shadow-soft sm:p-8">
+          <div>
+            <p className="text-sm uppercase tracking-[0.18em] text-citrus">Rider earnings</p>
+            <h2 className="mt-2 text-3xl font-semibold">Commission totals by delivery personnel</h2>
+          </div>
+          <div className="mt-6 space-y-4">
+            {dashboard.deliveryPersonnelEarnings.length ? (
+              dashboard.deliveryPersonnelEarnings.map((person) => (
+                <div key={person.deliveryPersonId} className="rounded-3xl border border-white/10 bg-white/8 p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-lg font-semibold">{person.deliveryPersonName}</p>
+                      <p className="text-sm text-cream/68">{person.deliveryPersonEmail}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-cream/68">Total earnings</p>
+                      <p className="text-2xl font-semibold">{formatCurrency(person.totalEarnings)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
+                      <p className="text-xs uppercase tracking-[0.14em] text-citrus">Completed</p>
+                      <p className="mt-2 text-lg font-semibold text-cream">{person.completedDeliveries}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
+                      <p className="text-xs uppercase tracking-[0.14em] text-citrus">Pending</p>
+                      <p className="mt-2 text-lg font-semibold text-cream">{formatCurrency(person.pendingEarnings)}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
+                      <p className="text-xs uppercase tracking-[0.14em] text-citrus">Paid</p>
+                      <p className="mt-2 text-lg font-semibold text-cream">{formatCurrency(person.paidEarnings)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-2xl bg-white/8 px-4 py-3 text-sm text-cream/70">No rider commissions have been recorded yet.</p>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="mt-10 rounded-[36px] border border-white/10 bg-white/6 p-5 shadow-soft sm:p-8">
@@ -574,6 +797,100 @@ export function AdminDashboardClient() {
                     </td>
                   </tr>
                 ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="mt-10 rounded-[36px] border border-white/10 bg-white/6 p-5 shadow-soft sm:p-8">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.18em] text-citrus">Commission ledger</p>
+            <h2 className="mt-2 text-3xl font-semibold">Delivery commission records</h2>
+            <p className="mt-3 max-w-3xl text-sm text-cream/70">
+              Review every rider commission created from completed deliveries and update payout status as settlements are made.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRefreshKey((current) => current + 1)}
+            className="inline-flex rounded-full border border-white/15 px-5 py-2 text-sm font-semibold text-cream"
+          >
+            Refresh commission feed
+          </button>
+        </div>
+
+        <div className="mt-6 overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="text-cream/70">
+              <tr className="border-b border-white/10">
+                <th className="px-3 py-3">Rider</th>
+                <th className="px-3 py-3">Order</th>
+                <th className="px-3 py-3">Delivery fee</th>
+                <th className="px-3 py-3">Commission</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="px-3 py-3">Recorded</th>
+                <th className="px-3 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deliveryCommissions.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-4 text-cream/70" colSpan={7}>
+                    No delivery commissions have been created yet.
+                  </td>
+                </tr>
+              ) : (
+                deliveryCommissions.map((commission) => {
+                  const isBusy = busyActionKey === `commission-${commission.id}`;
+
+                  return (
+                    <tr key={commission.id} className="border-b border-white/6">
+                      <td className="px-3 py-4">
+                        <div className="font-medium text-cream">{commission.deliveryPersonName}</div>
+                        <div className="text-xs text-cream/65">{commission.deliveryPersonEmail}</div>
+                      </td>
+                      <td className="px-3 py-4">
+                        <div className="font-medium text-cream">#{commission.orderId}</div>
+                        <div className="text-xs text-cream/65">{commission.groupReference || "Single-order route"}</div>
+                      </td>
+                      <td className="px-3 py-4">{formatCurrency(commission.deliveryFee)}</td>
+                      <td className="px-3 py-4">{formatCurrency(commission.commissionAmount)}</td>
+                      <td className="px-3 py-4">
+                        <Badge tone={commission.paymentStatus === "PAID" ? "green" : "amber"}>
+                          {commission.paymentStatus === "PAID" ? "Paid" : "Pending"}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-4">
+                        <div>{formatDateTime(commission.createdAt)}</div>
+                        {commission.paidAt ? (
+                          <div className="mt-1 text-xs text-cream/65">Paid {formatDateTime(commission.paidAt)}</div>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleUpdateCommissionStatus(commission, "PENDING")}
+                            disabled={isBusy || commission.paymentStatus === "PENDING"}
+                            className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-xs font-semibold text-cream disabled:opacity-50"
+                          >
+                            {isBusy && commission.paymentStatus !== "PENDING" ? "Updating..." : "Mark pending"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleUpdateCommissionStatus(commission, "PAID")}
+                            disabled={isBusy || commission.paymentStatus === "PAID"}
+                            className="rounded-full bg-citrus px-4 py-2 text-xs font-semibold text-ink disabled:opacity-50"
+                          >
+                            {isBusy && commission.paymentStatus !== "PAID" ? "Updating..." : "Mark paid"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -1027,6 +1344,24 @@ function formatShortDay(value: string) {
   return new Intl.DateTimeFormat("en-GH", {
     weekday: "short"
   }).format(date);
+}
+
+function buildAdminWebSocketUrl(token: string) {
+  if (!token) {
+    return null;
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api";
+
+  try {
+    const url = new URL(baseUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.pathname = "/ws/admin-dashboard";
+    url.search = `?token=${encodeURIComponent(token)}`;
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
 
 function escapeHtml(value: string) {

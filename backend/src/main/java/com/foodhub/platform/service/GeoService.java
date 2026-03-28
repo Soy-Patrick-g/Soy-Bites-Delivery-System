@@ -2,20 +2,16 @@ package com.foodhub.platform.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GeoService {
 
-    @Value("${app.delivery.base-fee}")
-    private BigDecimal baseFee;
+    private final DeliverySettingsService deliverySettingsService;
 
-    @Value("${app.delivery.fee-per-km}")
-    private BigDecimal feePerKm;
-
-    @Value("${app.delivery.free-delivery-under-km}")
-    private double freeDeliveryUnderKm;
+    public GeoService(DeliverySettingsService deliverySettingsService) {
+        this.deliverySettingsService = deliverySettingsService;
+    }
 
     public double distanceInKm(double lat1, double lon1, double lat2, double lon2) {
         double earthRadiusKm = 6371.0;
@@ -29,11 +25,12 @@ public class GeoService {
     }
 
     public BigDecimal calculateDeliveryFee(double distanceKm) {
+        DeliverySettingsService.DeliverySettingsSnapshot settings = deliverySettingsService.getSnapshot();
+        double freeDeliveryUnderKm = settings.freeDeliveryUnderKm();
         if (distanceKm <= freeDeliveryUnderKm) {
             return BigDecimal.ZERO;
         }
-        return baseFee.add(feePerKm.multiply(BigDecimal.valueOf(distanceKm)))
+        return settings.deliveryBaseFee().add(settings.deliveryFeePerKm().multiply(BigDecimal.valueOf(distanceKm)))
                 .setScale(2, RoundingMode.HALF_UP);
     }
 }
-

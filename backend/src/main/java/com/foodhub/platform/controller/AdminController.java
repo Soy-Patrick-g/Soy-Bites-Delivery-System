@@ -2,15 +2,21 @@ package com.foodhub.platform.controller;
 
 import com.foodhub.platform.dto.AdminAuditLogResponse;
 import com.foodhub.platform.dto.AdminDashboardResponse;
+import com.foodhub.platform.dto.AdminDeliveryCommissionResponse;
+import com.foodhub.platform.dto.AdminDeliverySettingsResponse;
 import com.foodhub.platform.dto.AdminRestaurantResponse;
 import com.foodhub.platform.dto.AdminSessionResponse;
 import com.foodhub.platform.dto.AdminTransactionResponse;
 import com.foodhub.platform.dto.AdminUserInsightResponse;
 import com.foodhub.platform.dto.OrderResponse;
 import com.foodhub.platform.dto.UpdateAccountStatusRequest;
+import com.foodhub.platform.dto.UpdateDeliveryCommissionStatusRequest;
+import com.foodhub.platform.dto.UpdateDeliverySettingsRequest;
 import com.foodhub.platform.dto.UpdateRestaurantStatusRequest;
 import com.foodhub.platform.dto.UpdateRestaurantVerificationRequest;
 import com.foodhub.platform.service.AdminDashboardService;
+import com.foodhub.platform.service.DeliveryCommissionService;
+import com.foodhub.platform.service.DeliverySettingsService;
 import com.foodhub.platform.service.OrderService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
@@ -35,10 +41,17 @@ public class AdminController {
 
     private final AdminDashboardService adminDashboardService;
     private final OrderService orderService;
+    private final DeliverySettingsService deliverySettingsService;
+    private final DeliveryCommissionService deliveryCommissionService;
 
-    public AdminController(AdminDashboardService adminDashboardService, OrderService orderService) {
+    public AdminController(AdminDashboardService adminDashboardService,
+                           OrderService orderService,
+                           DeliverySettingsService deliverySettingsService,
+                           DeliveryCommissionService deliveryCommissionService) {
         this.adminDashboardService = adminDashboardService;
         this.orderService = orderService;
+        this.deliverySettingsService = deliverySettingsService;
+        this.deliveryCommissionService = deliveryCommissionService;
     }
 
     @GetMapping("/dashboard")
@@ -104,6 +117,28 @@ public class AdminController {
     @GetMapping("/restaurants")
     public List<AdminRestaurantResponse> restaurants(@RequestParam(required = false) String search) {
         return adminDashboardService.getRestaurants(search);
+    }
+
+    @GetMapping("/delivery-commissions")
+    public List<AdminDeliveryCommissionResponse> deliveryCommissions() {
+        return adminDashboardService.getDeliveryCommissions();
+    }
+
+    @PatchMapping("/delivery-commissions/{commissionId}/status")
+    public AdminDeliveryCommissionResponse updateDeliveryCommissionStatus(@PathVariable Long commissionId,
+                                                                         @Valid @RequestBody UpdateDeliveryCommissionStatusRequest request,
+                                                                         Authentication authentication) {
+        return deliveryCommissionService.updateCommissionPaymentStatus(commissionId, request, authentication.getName());
+    }
+
+    @GetMapping("/settings/delivery")
+    public AdminDeliverySettingsResponse deliverySettings() {
+        return adminDashboardService.getDeliverySettings();
+    }
+
+    @PatchMapping("/settings/delivery")
+    public AdminDeliverySettingsResponse updateDeliverySettings(@Valid @RequestBody UpdateDeliverySettingsRequest request) {
+        return deliverySettingsService.updateSettings(request);
     }
 
     @PatchMapping("/restaurants/{restaurantId}/verification")

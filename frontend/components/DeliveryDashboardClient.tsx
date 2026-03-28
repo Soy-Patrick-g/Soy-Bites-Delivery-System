@@ -330,6 +330,19 @@ export function DeliveryDashboardClient() {
     );
   }
 
+  if (!dashboard) {
+    return (
+      <Shell>
+        <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
+          The rider dashboard is not available right now. Please refresh and try again.
+        </p>
+      </Shell>
+    );
+  }
+
+  const earnings = dashboard.earnings;
+  const commissions = dashboard.commissions;
+
   return (
     <Shell>
       {error ? <p className="mb-6 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p> : null}
@@ -389,6 +402,28 @@ export function DeliveryDashboardClient() {
               Register another rider
             </Link>
           </div>
+
+          <section className="mt-6">
+            <p className="text-xs uppercase tracking-[0.16em] text-olive">Your earnings</p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <article className="rounded-3xl bg-cream px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-olive">Total earned</p>
+                <p className="mt-2 text-2xl font-semibold text-ink">{formatCurrency(earnings.totalEarnings)}</p>
+              </article>
+              <article className="rounded-3xl bg-cream px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-olive">Pending payout</p>
+                <p className="mt-2 text-2xl font-semibold text-ink">{formatCurrency(earnings.pendingEarnings)}</p>
+              </article>
+              <article className="rounded-3xl bg-cream px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-olive">Paid out</p>
+                <p className="mt-2 text-2xl font-semibold text-ink">{formatCurrency(earnings.paidEarnings)}</p>
+              </article>
+              <article className="rounded-3xl bg-cream px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-olive">Completed deliveries</p>
+                <p className="mt-2 text-2xl font-semibold text-ink">{earnings.completedDeliveries}</p>
+              </article>
+            </div>
+          </section>
 
           <section className="mt-6">
             <p className="text-xs uppercase tracking-[0.16em] text-olive">Ready to claim</p>
@@ -457,6 +492,43 @@ export function DeliveryDashboardClient() {
               ) : (
                 <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/65">
                   Completed deliveries will appear here after you finish them.
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <p className="text-xs uppercase tracking-[0.16em] text-olive">Commission history</p>
+            <div className="mt-3 space-y-3">
+              {commissions.length ? (
+                commissions.map((commission) => (
+                  <article key={commission.id} className="rounded-3xl bg-cream px-4 py-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-ink">Delivery #{commission.orderId}</p>
+                        <p className="mt-1 text-sm text-ink/65">
+                          Recorded {new Intl.DateTimeFormat("en-GH", { dateStyle: "medium", timeStyle: "short" }).format(new Date(commission.createdAt))}
+                        </p>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${commission.paymentStatus === "PAID" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                        {commission.paymentStatus === "PAID" ? "Paid" : "Pending"}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-white px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-olive">Delivery fee</p>
+                        <p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(commission.deliveryFee)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-olive">Your commission</p>
+                        <p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(commission.commissionAmount)}</p>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/65">
+                  Your completed delivery commissions will appear here after your first successful drop-off.
                 </p>
               )}
             </div>

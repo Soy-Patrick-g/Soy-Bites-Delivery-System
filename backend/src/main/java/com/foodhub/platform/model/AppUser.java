@@ -44,6 +44,9 @@ public class AppUser {
     @Column(nullable = false, precision = 10, scale = 2, columnDefinition = "numeric(10,2) default 0")
     private BigDecimal accountBalance = BigDecimal.ZERO;
 
+    @Column(nullable = false, precision = 10, scale = 2, columnDefinition = "numeric(10,2) default 0")
+    private BigDecimal deliveryEarningsTotal = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "varchar(255) default 'UNVERIFIED'")
     private KycStatus kycStatus = KycStatus.UNVERIFIED;
@@ -70,6 +73,9 @@ public class AppUser {
     private void applyDefaults() {
         if (accountBalance == null) {
             accountBalance = BigDecimal.ZERO;
+        }
+        if (deliveryEarningsTotal == null) {
+            deliveryEarningsTotal = BigDecimal.ZERO;
         }
         if (kycStatus == null) {
             kycStatus = KycStatus.UNVERIFIED;
@@ -150,6 +156,14 @@ public class AppUser {
 
     public void setAccountBalance(BigDecimal accountBalance) {
         this.accountBalance = accountBalance;
+    }
+
+    public BigDecimal getDeliveryEarningsTotal() {
+        return deliveryEarningsTotal;
+    }
+
+    public void setDeliveryEarningsTotal(BigDecimal deliveryEarningsTotal) {
+        this.deliveryEarningsTotal = deliveryEarningsTotal;
     }
 
     public KycStatus getKycStatus() {

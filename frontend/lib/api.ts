@@ -3,12 +3,15 @@ import {
   Coordinates,
   AdminAuditLog,
   AdminDashboard,
+  AdminDeliveryCommission,
+  AdminDeliverySettings,
   AdminRestaurant,
   AdminSessionRecord,
   AdminTransaction,
   AdminTransactionFilters,
   AdminUserInsight,
   AuthSession,
+  CreateWithdrawalRequest,
   CreateRestaurantBranchRequest,
   DeliveryLocation,
   CreateOwnerMenuItemRequest,
@@ -30,6 +33,11 @@ import {
   RestaurantSummary,
   ResetPasswordRequest,
   UploadedImage,
+  WithdrawalBankOption,
+  WithdrawalDashboard,
+  WithdrawalRecord,
+  UpdateDeliveryCommissionStatusRequest,
+  UpdateDeliverySettingsRequest,
   UpdateOwnerMenuItemRequest
 } from "@/lib/types";
 
@@ -41,43 +49,64 @@ function cleanParams(params: Record<string, string | undefined>) {
   return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== ""));
 }
 
+function extractApiMessage(data: unknown): string | null {
+  if (!data) {
+    return null;
+  }
+
+  if (typeof data === "string" && data.trim()) {
+    return data.trim();
+  }
+
+  if (typeof data === "object") {
+    const payload = data as Record<string, unknown>;
+    const message = typeof payload.message === "string" ? payload.message.trim() : "";
+    const detail = typeof payload.detail === "string" ? payload.detail.trim() : "";
+    const errorText = typeof payload.error === "string" ? payload.error.trim() : "";
+    return message || detail || errorText || null;
+  }
+
+  return null;
+}
+
 function toMessage(error: unknown, label: string): Error {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
+    const backendMessage = extractApiMessage(error.response?.data);
 
     if (!error.response) {
       return new Error("We couldn’t connect right now. Please check your connection and try again.");
     }
 
     if (status === 401) {
-      return new Error("Your session has ended. Please sign in again and try once more.");
+      return new Error(backendMessage || "Your session has ended. Please sign in again and try once more.");
     }
 
     if (status === 403) {
-      return new Error("You do not have permission to do that.");
+      return new Error(backendMessage || "You do not have permission to do that.");
     }
 
     if (status === 404) {
-      return new Error(`${label} could not be found. Please refresh and try again.`);
+      return new Error(backendMessage || `${label} could not be found. Please refresh and try again.`);
     }
 
     if (status === 409) {
-      return new Error("This request could not be completed because the information changed. Please refresh and try again.");
+      return new Error(backendMessage || "This request could not be completed because the information changed. Please refresh and try again.");
     }
 
     if (status === 422) {
-      return new Error("Some of the information provided needs attention. Please review it and try again.");
+      return new Error(backendMessage || "Some of the information provided needs attention. Please review it and try again.");
     }
 
     if (status === 429) {
-      return new Error("Too many requests were made. Please wait a moment and try again.");
+      return new Error(backendMessage || "Too many requests were made. Please wait a moment and try again.");
     }
 
     if (typeof status === "number" && status >= 500) {
-      return new Error(`${label} is temporarily unavailable. Please try again soon.`);
+      return new Error(backendMessage || `${label} is temporarily unavailable. Please try again soon.`);
     }
 
-    return new Error(`${label} could not be completed right now. Please try again.`);
+    return new Error(backendMessage || `${label} could not be completed right now. Please try again.`);
   }
   return error instanceof Error ? error : new Error(`${label} could not be completed right now.`);
 }
@@ -219,6 +248,57 @@ export async function getAdminUsers(token: string, search?: string): Promise<Adm
     return data;
   } catch (error) {
     throw toMessage(error, "Account details");
+  }
+}
+
+export async function getAdminDeliveryCommissions(token: string): Promise<AdminDeliveryCommission[]> {
+  try {
+    const { data } = await api.get<AdminDeliveryCommission[]>("/admin/delivery-commissions", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Commission records");
+  }
+}
+
+export async function updateAdminDeliveryCommissionStatus(
+  token: string,
+  commissionId: number,
+  payload: UpdateDeliveryCommissionStatusRequest
+): Promise<AdminDeliveryCommission> {
+  try {
+    const { data } = await api.patch<AdminDeliveryCommission>(`/admin/delivery-commissions/${commissionId}/status`, payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Commission payment update");
+  }
+}
+
+export async function getAdminDeliverySettings(token: string): Promise<AdminDeliverySettings> {
+  try {
+    const { data } = await api.get<AdminDeliverySettings>("/admin/settings/delivery", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Delivery settings");
+  }
+}
+
+export async function updateAdminDeliverySettings(
+  token: string,
+  payload: UpdateDeliverySettingsRequest
+): Promise<AdminDeliverySettings> {
+  try {
+    const { data } = await api.patch<AdminDeliverySettings>("/admin/settings/delivery", payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Delivery settings");
   }
 }
 
@@ -530,6 +610,39 @@ export async function completeDeliveryOrder(token: string, orderId: number): Pro
   }
 }
 
+export async function getDeliveryWithdrawals(token: string): Promise<WithdrawalDashboard> {
+  try {
+    const { data } = await api.get<WithdrawalDashboard>("/delivery/withdrawals", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Delivery withdrawals");
+  }
+}
+
+export async function getDeliveryWithdrawalBanks(token: string): Promise<WithdrawalBankOption[]> {
+  try {
+    const { data } = await api.get<WithdrawalBankOption[]>("/delivery/withdrawals/banks", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Supported payout destinations");
+  }
+}
+
+export async function createDeliveryWithdrawal(token: string, payload: CreateWithdrawalRequest): Promise<WithdrawalRecord> {
+  try {
+    const { data } = await api.post<WithdrawalRecord>("/delivery/withdrawals", payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Delivery withdrawal");
+  }
+}
+
 export async function advanceOwnerOrder(token: string, orderId: number): Promise<Order> {
   try {
     const { data } = await api.patch<Order>(`/owner/orders/${orderId}/advance`, undefined, {
@@ -538,6 +651,39 @@ export async function advanceOwnerOrder(token: string, orderId: number): Promise
     return data;
   } catch (error) {
     throw toMessage(error, "Order update");
+  }
+}
+
+export async function getOwnerWithdrawals(token: string): Promise<WithdrawalDashboard> {
+  try {
+    const { data } = await api.get<WithdrawalDashboard>("/owner/withdrawals", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Restaurant withdrawals");
+  }
+}
+
+export async function getOwnerWithdrawalBanks(token: string): Promise<WithdrawalBankOption[]> {
+  try {
+    const { data } = await api.get<WithdrawalBankOption[]>("/owner/withdrawals/banks", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Supported payout destinations");
+  }
+}
+
+export async function createOwnerWithdrawal(token: string, payload: CreateWithdrawalRequest): Promise<WithdrawalRecord> {
+  try {
+    const { data } = await api.post<WithdrawalRecord>("/owner/withdrawals", payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Restaurant withdrawal");
   }
 }
 

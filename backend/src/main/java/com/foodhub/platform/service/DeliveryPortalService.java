@@ -36,6 +36,8 @@ public class DeliveryPortalService {
     private final UserSessionService userSessionService;
     private final AuditLogService auditLogService;
     private final PaymentService paymentService;
+    private final DeliveryCommissionService deliveryCommissionService;
+    private final AdminRealtimeService adminRealtimeService;
 
     public DeliveryPortalService(AppUserRepository appUserRepository,
                                  OrderRepository orderRepository,
@@ -44,7 +46,9 @@ public class DeliveryPortalService {
                                  CustomUserDetailsService userDetailsService,
                                  UserSessionService userSessionService,
                                  AuditLogService auditLogService,
-                                 PaymentService paymentService) {
+                                 PaymentService paymentService,
+                                 DeliveryCommissionService deliveryCommissionService,
+                                 AdminRealtimeService adminRealtimeService) {
         this.appUserRepository = appUserRepository;
         this.orderRepository = orderRepository;
         this.passwordEncoder = passwordEncoder;
@@ -53,6 +57,8 @@ public class DeliveryPortalService {
         this.userSessionService = userSessionService;
         this.auditLogService = auditLogService;
         this.paymentService = paymentService;
+        this.deliveryCommissionService = deliveryCommissionService;
+        this.adminRealtimeService = adminRealtimeService;
     }
 
     @Transactional
@@ -101,6 +107,8 @@ public class DeliveryPortalService {
                 driver.getEmail(),
                 driver.getLatitude(),
                 driver.getLongitude(),
+                deliveryCommissionService.getDriverSummary(driver.getId()),
+                deliveryCommissionService.getDriverCommissions(driver.getId()),
                 availableOrders,
                 assignedOrders
         );
@@ -167,8 +175,14 @@ public class DeliveryPortalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
         List<FoodOrder> routeOrders = resolveDeliveryGroup(order);
-        if (routeOrders.stream().noneMatch(current -> current.getDeliveryPerson() != null
-                && current.getDeliveryPerson().getId().equals(driver.getId()))) {
+        boolean assignedToDriver = routeOrders.stream().anyMatch(current -> current.getDeliveryPerson() != null
+                && current.getDeliveryPerson().getId().equals(driver.getId()));
+        boolean routeUnassigned = routeOrders.stream().allMatch(current -> current.getDeliveryPerson() == null);
+
+        if (!assignedToDriver && routeUnassigned) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Claim this route before marking it delivered");
+        }
+        if (!assignedToDriver) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only complete orders assigned to you");
         }
         if (routeOrders.stream().anyMatch(current -> current.getDeliveryPerson() != null
@@ -205,6 +219,12 @@ public class DeliveryPortalService {
         } else {
             auditLogService.log(driver.getEmail(), driver.getRole(), "DELIVERY_COMPLETE", "ORDER", String.valueOf(saved.getId()), "Driver completed delivery");
         }
+        deliveryCommissionService.recordCompletedDeliveries(savedOrders);
+        adminRealtimeService.publish("delivery_completed", Map.of(
+                "orderId", saved.getId(),
+                "groupReference", saved.getGroupReference(),
+                "driverEmail", driver.getEmail()
+        ));
         return toOrderResponse(saved);
     }
 
@@ -216,8 +236,14 @@ public class DeliveryPortalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
         List<FoodOrder> routeOrders = resolveDeliveryGroup(order);
-        if (routeOrders.stream().noneMatch(current -> current.getDeliveryPerson() != null
-                && current.getDeliveryPerson().getId().equals(driver.getId()))) {
+        boolean assignedToDriver = routeOrders.stream().anyMatch(current -> current.getDeliveryPerson() != null
+                && current.getDeliveryPerson().getId().equals(driver.getId()));
+        boolean routeUnassigned = routeOrders.stream().allMatch(current -> current.getDeliveryPerson() == null);
+
+        if (!assignedToDriver && routeUnassigned) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This route is not currently assigned to any rider");
+        }
+        if (!assignedToDriver) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only unclaim deliveries assigned to you");
         }
         if (routeOrders.stream().anyMatch(current -> current.getStatus() != OrderStatus.OUT_FOR_DELIVERY)) {

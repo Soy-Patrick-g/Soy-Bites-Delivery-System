@@ -191,6 +191,39 @@ export type AdminUserInsight = {
   recentTransactions: AdminUserTransactionPreview[];
 };
 
+export type AdminDeliveryPersonnelEarnings = {
+  deliveryPersonId: number;
+  deliveryPersonName: string;
+  deliveryPersonEmail: string;
+  totalEarnings: number;
+  pendingEarnings: number;
+  paidEarnings: number;
+  completedDeliveries: number;
+};
+
+export type AdminDeliveryCommission = {
+  id: number;
+  deliveryPersonId: number;
+  deliveryPersonName: string;
+  deliveryPersonEmail: string;
+  orderId: number;
+  groupReference?: string | null;
+  deliveryFee: number;
+  commissionAmount: number;
+  paymentStatus: "PENDING" | "PAID";
+  createdAt: string;
+  paidAt?: string | null;
+};
+
+export type AdminDeliverySettings = {
+  deliveryBaseFee: number;
+  deliveryFeePerKm: number;
+  freeDeliveryUnderKm: number;
+  commissionType: "FIXED" | "DELIVERY_FEE_PERCENTAGE";
+  fixedCommissionAmount: number;
+  commissionPercentage: number;
+};
+
 export type AdminRestaurant = {
   id: number;
   name: string;
@@ -218,6 +251,11 @@ export type AdminDashboard = {
   chargebacksTotal: number;
   netSettlementAmount: number;
   totalOwnerAllocations: number;
+  completedDeliveries: number;
+  totalCommissionOwed: number;
+  pendingCommissionTotal: number;
+  paidCommissionTotal: number;
+  deliveryPersonnelEarnings: AdminDeliveryPersonnelEarnings[];
   volumeTrends: AdminTrendPoint[];
   topRestaurants: RestaurantSummary[];
 };
@@ -236,6 +274,35 @@ export type OwnerDashboard = {
   orders: Order[];
 };
 
+export type WithdrawalBankOption = {
+  code: string;
+  name: string;
+  type: "ghipss" | "mobile_money";
+};
+
+export type WithdrawalRecord = {
+  id: number;
+  amount: number;
+  status: "PROCESSING" | "COMPLETED" | "FAILED";
+  provider: string;
+  reference: string;
+  destinationType: "ghipss" | "mobile_money";
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  reason?: string | null;
+  failureReason?: string | null;
+  createdAt: string;
+  processedAt?: string | null;
+};
+
+export type WithdrawalDashboard = {
+  fullName: string;
+  email: string;
+  availableBalance: number;
+  withdrawals: WithdrawalRecord[];
+};
+
 export type DeliveryLocation = {
   latitude: number;
   longitude: number;
@@ -246,8 +313,27 @@ export type DeliveryDashboard = {
   driverEmail: string;
   currentLatitude?: number | null;
   currentLongitude?: number | null;
+  earnings: DeliveryEarningsSummary;
+  commissions: DeliveryCommission[];
   availableOrders: Order[];
   assignedOrders: Order[];
+};
+
+export type DeliveryEarningsSummary = {
+  totalEarnings: number;
+  pendingEarnings: number;
+  paidEarnings: number;
+  completedDeliveries: number;
+};
+
+export type DeliveryCommission = {
+  id: number;
+  orderId: number;
+  deliveryFee: number;
+  commissionAmount: number;
+  paymentStatus: "PENDING" | "PAID";
+  createdAt: string;
+  paidAt?: string | null;
 };
 
 export type UserRole = "USER" | "DELIVERY" | "RESTAURANT" | "ADMIN";
@@ -291,6 +377,15 @@ export type ForgotPasswordResult = {
   message: string;
   previewResetUrl?: string | null;
   expiresAt?: string | null;
+};
+
+export type CreateWithdrawalRequest = {
+  amount: number;
+  destinationType: "ghipss" | "mobile_money";
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  reason?: string;
 };
 
 export type ResetPasswordRequest = {
@@ -385,4 +480,17 @@ export type CreateRestaurantBranchRequest = {
   city: string;
   latitude: number;
   longitude: number;
+};
+
+export type UpdateDeliveryCommissionStatusRequest = {
+  paymentStatus: "PENDING" | "PAID";
+};
+
+export type UpdateDeliverySettingsRequest = {
+  deliveryBaseFee: number;
+  deliveryFeePerKm: number;
+  freeDeliveryUnderKm: number;
+  commissionType: "FIXED" | "DELIVERY_FEE_PERCENTAGE";
+  fixedCommissionAmount: number;
+  commissionPercentage: number;
 };

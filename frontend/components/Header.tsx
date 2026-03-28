@@ -34,12 +34,13 @@ export function Header() {
         : isRestaurant
           ? [
               { href: "/restaurant/dashboard", label: "Restaurant dashboard" },
-              { href: "/restaurant/menu", label: "Menu management" }
+              { href: "/restaurant/menu", label: "Menu management" },
+              { href: "/restaurant/withdrawals", label: "Withdrawals" }
             ]
           : isDelivery
             ? [
                 { href: "/delivery/dashboard", label: "Delivery dashboard" },
-                { href: "/delivery/register", label: "Join as rider" }
+                { href: "/delivery/withdrawals", label: "Withdrawals" }
               ]
             : [];
 

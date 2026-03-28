@@ -160,11 +160,13 @@ public class OwnerPortalService {
 
     @Transactional
     public OrderResponse advanceOrder(String ownerEmail, Long orderId) {
+        AppUser owner = appUserRepository.findByEmailIgnoreCase(ownerEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Owner not found"));
         FoodOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
         if (order.getRestaurant().getOwner() == null
-                || !order.getRestaurant().getOwner().getEmail().equalsIgnoreCase(ownerEmail)) {
+                || !order.getRestaurant().getOwner().getId().equals(owner.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage your own restaurant orders");
         }
 

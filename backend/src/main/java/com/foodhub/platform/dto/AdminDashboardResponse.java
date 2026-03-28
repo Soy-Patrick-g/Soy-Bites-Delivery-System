@@ -17,6 +17,11 @@ public record AdminDashboardResponse(
         BigDecimal chargebacksTotal,
         BigDecimal netSettlementAmount,
         BigDecimal totalOwnerAllocations,
+        long completedDeliveries,
+        BigDecimal totalCommissionOwed,
+        BigDecimal pendingCommissionTotal,
+        BigDecimal paidCommissionTotal,
+        List<AdminDeliveryPersonnelEarningsResponse> deliveryPersonnelEarnings,
         List<AdminTrendPointResponse> volumeTrends,
         List<RestaurantSummaryResponse> topRestaurants
 ) {

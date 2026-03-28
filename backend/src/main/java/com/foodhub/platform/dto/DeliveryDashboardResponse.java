@@ -7,6 +7,8 @@ public record DeliveryDashboardResponse(
         String driverEmail,
         Double currentLatitude,
         Double currentLongitude,
+        DeliveryEarningsSummaryResponse earnings,
+        List<DeliveryCommissionResponse> commissions,
         List<OrderResponse> availableOrders,
         List<OrderResponse> assignedOrders
 ) {

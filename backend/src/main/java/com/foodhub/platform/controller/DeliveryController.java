@@ -6,8 +6,14 @@ import com.foodhub.platform.dto.DeliveryDashboardResponse;
 import com.foodhub.platform.dto.DeliveryRegisterRequest;
 import com.foodhub.platform.dto.OrderResponse;
 import com.foodhub.platform.dto.UpdateLocationRequest;
+import com.foodhub.platform.dto.CreateWithdrawalRequest;
+import com.foodhub.platform.dto.WithdrawalBankOptionResponse;
+import com.foodhub.platform.dto.WithdrawalDashboardResponse;
+import com.foodhub.platform.dto.WithdrawalResponse;
 import com.foodhub.platform.service.DeliveryPortalService;
+import com.foodhub.platform.service.WithdrawalService;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -22,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class DeliveryController {
 
     private final DeliveryPortalService deliveryPortalService;
+    private final WithdrawalService withdrawalService;
 
-    public DeliveryController(DeliveryPortalService deliveryPortalService) {
+    public DeliveryController(DeliveryPortalService deliveryPortalService, WithdrawalService withdrawalService) {
         this.deliveryPortalService = deliveryPortalService;
+        this.withdrawalService = withdrawalService;
     }
 
     @PostMapping("/register")
@@ -60,5 +68,21 @@ public class DeliveryController {
     @PatchMapping("/orders/{orderId}/complete")
     public OrderResponse completeOrder(@PathVariable Long orderId, Authentication authentication) {
         return deliveryPortalService.completeOrder(authentication.getName(), orderId);
+    }
+
+    @GetMapping("/withdrawals")
+    public WithdrawalDashboardResponse getWithdrawals(Authentication authentication) {
+        return withdrawalService.getDashboard(authentication.getName(), com.foodhub.platform.model.UserRole.DELIVERY);
+    }
+
+    @GetMapping("/withdrawals/banks")
+    public List<WithdrawalBankOptionResponse> getWithdrawalBanks() {
+        return withdrawalService.getBankOptions();
+    }
+
+    @PostMapping("/withdrawals")
+    public WithdrawalResponse createWithdrawal(@Valid @RequestBody CreateWithdrawalRequest request,
+                                               Authentication authentication) {
+        return withdrawalService.createWithdrawal(authentication.getName(), com.foodhub.platform.model.UserRole.DELIVERY, request);
     }
 }

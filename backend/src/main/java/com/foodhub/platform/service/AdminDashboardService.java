@@ -2,6 +2,8 @@ package com.foodhub.platform.service;
 
 import com.foodhub.platform.dto.AdminAuditLogResponse;
 import com.foodhub.platform.dto.AdminDashboardResponse;
+import com.foodhub.platform.dto.AdminDeliveryCommissionResponse;
+import com.foodhub.platform.dto.AdminDeliverySettingsResponse;
 import com.foodhub.platform.dto.AdminRestaurantResponse;
 import com.foodhub.platform.dto.AdminSessionResponse;
 import com.foodhub.platform.dto.AdminTransactionResponse;
@@ -53,6 +55,8 @@ public class AdminDashboardService {
     private final UserSessionRepository userSessionRepository;
     private final UserSessionService userSessionService;
     private final AuditLogService auditLogService;
+    private final DeliveryCommissionService deliveryCommissionService;
+    private final DeliverySettingsService deliverySettingsService;
 
     public AdminDashboardService(RestaurantRepository restaurantRepository,
                                  OrderRepository orderRepository,
@@ -63,7 +67,9 @@ public class AdminDashboardService {
                                  AuditLogRepository auditLogRepository,
                                  UserSessionRepository userSessionRepository,
                                  UserSessionService userSessionService,
-                                 AuditLogService auditLogService) {
+                                 AuditLogService auditLogService,
+                                 DeliveryCommissionService deliveryCommissionService,
+                                 DeliverySettingsService deliverySettingsService) {
         this.restaurantRepository = restaurantRepository;
         this.orderRepository = orderRepository;
         this.reviewRepository = reviewRepository;
@@ -74,6 +80,8 @@ public class AdminDashboardService {
         this.userSessionRepository = userSessionRepository;
         this.userSessionService = userSessionService;
         this.auditLogService = auditLogService;
+        this.deliveryCommissionService = deliveryCommissionService;
+        this.deliverySettingsService = deliverySettingsService;
     }
 
     @Transactional(readOnly = true)
@@ -100,6 +108,8 @@ public class AdminDashboardService {
                 .filter(order -> order.getPaymentStatus() == PaymentStatus.PAID)
                 .map(FoodOrder::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal pendingCommissionTotal = deliveryCommissionService.getPendingCommissionTotal();
+        BigDecimal paidCommissionTotal = deliveryCommissionService.getPaidCommissionTotal();
 
         return new AdminDashboardResponse(
                 restaurantRepository.findByActiveTrue().size(),
@@ -115,6 +125,11 @@ public class AdminDashboardService {
                 chargebacksTotal,
                 totalRevenue.subtract(refundsTotal).subtract(chargebacksTotal),
                 totalOwnerAllocations,
+                deliveryCommissionService.getCompletedDeliveriesCount(),
+                pendingCommissionTotal,
+                pendingCommissionTotal,
+                paidCommissionTotal,
+                deliveryCommissionService.getPersonnelEarnings(),
                 buildVolumeTrends(transactions),
                 topRestaurants
         );
@@ -291,6 +306,16 @@ public class AdminDashboardService {
         Restaurant saved = restaurantRepository.save(restaurant);
         auditLogService.log(adminEmail, com.foodhub.platform.model.UserRole.ADMIN, active ? "ADMIN_RESTAURANT_ACTIVATE" : "ADMIN_RESTAURANT_DEACTIVATE", "RESTAURANT", String.valueOf(saved.getId()), saved.getName());
         return toAdminRestaurant(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminDeliveryCommissionResponse> getDeliveryCommissions() {
+        return deliveryCommissionService.getAllCommissionRecords();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminDeliverySettingsResponse getDeliverySettings() {
+        return deliverySettingsService.getAdminSettings();
     }
 
     private List<AdminTransactionResponse> filterTransactions(List<PaymentTransaction> source,
