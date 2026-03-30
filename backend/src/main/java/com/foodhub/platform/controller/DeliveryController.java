@@ -62,17 +62,17 @@ public class DeliveryController {
     }
 
     @PatchMapping("/orders/{orderId}/claim")
-    public OrderResponse claimOrder(@PathVariable Long orderId, Authentication authentication) {
+    public OrderResponse claimOrder(@PathVariable("orderId") Long orderId, Authentication authentication) {
         return deliveryPortalService.claimOrder(authentication.getName(), orderId);
     }
 
     @PatchMapping("/orders/{orderId}/unclaim")
-    public OrderResponse unclaimOrder(@PathVariable Long orderId, Authentication authentication) {
+    public OrderResponse unclaimOrder(@PathVariable("orderId") Long orderId, Authentication authentication) {
         return deliveryPortalService.unclaimOrder(authentication.getName(), orderId);
     }
 
     @PatchMapping("/orders/{orderId}/complete")
-    public OrderResponse completeOrder(@PathVariable Long orderId, Authentication authentication) {
+    public OrderResponse completeOrder(@PathVariable("orderId") Long orderId, Authentication authentication) {
         return deliveryPortalService.completeOrder(authentication.getName(), orderId);
     }
 

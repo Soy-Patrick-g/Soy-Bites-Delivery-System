@@ -60,7 +60,7 @@ public class OwnerController {
     }
 
     @GetMapping("/restaurants/{restaurantId}/menu")
-    public List<MenuItemResponse> getRestaurantMenu(@PathVariable Long restaurantId, Authentication authentication) {
+    public List<MenuItemResponse> getRestaurantMenu(@PathVariable("restaurantId") Long restaurantId, Authentication authentication) {
         return ownerPortalService.getRestaurantMenu(authentication.getName(), restaurantId);
     }
 
@@ -77,30 +77,30 @@ public class OwnerController {
     }
 
     @PostMapping("/restaurants/{restaurantId}/menu")
-    public MenuItemResponse createMenuItem(@PathVariable Long restaurantId,
+    public MenuItemResponse createMenuItem(@PathVariable("restaurantId") Long restaurantId,
                                            @Valid @RequestBody CreateMenuItemRequest request,
                                            Authentication authentication) {
         return ownerPortalService.createMenuItem(authentication.getName(), restaurantId, request);
     }
 
     @PatchMapping("/restaurants/{restaurantId}/menu/{menuItemId}")
-    public MenuItemResponse updateMenuItem(@PathVariable Long restaurantId,
-                                           @PathVariable Long menuItemId,
+    public MenuItemResponse updateMenuItem(@PathVariable("restaurantId") Long restaurantId,
+                                           @PathVariable("menuItemId") Long menuItemId,
                                            @Valid @RequestBody UpdateMenuItemRequest request,
                                            Authentication authentication) {
         return ownerPortalService.updateMenuItem(authentication.getName(), restaurantId, menuItemId, request);
     }
 
     @PatchMapping("/restaurants/{restaurantId}/menu/{menuItemId}/availability")
-    public MenuItemResponse updateMenuItemAvailability(@PathVariable Long restaurantId,
-                                                       @PathVariable Long menuItemId,
+    public MenuItemResponse updateMenuItemAvailability(@PathVariable("restaurantId") Long restaurantId,
+                                                       @PathVariable("menuItemId") Long menuItemId,
                                                        @Valid @RequestBody UpdateMenuItemAvailabilityRequest request,
                                                        Authentication authentication) {
         return ownerPortalService.updateMenuItemAvailability(authentication.getName(), restaurantId, menuItemId, request);
     }
 
     @PatchMapping("/orders/{orderId}/advance")
-    public OrderResponse advanceOrder(@PathVariable Long orderId, Authentication authentication) {
+    public OrderResponse advanceOrder(@PathVariable("orderId") Long orderId, Authentication authentication) {
         return ownerPortalService.advanceOrder(authentication.getName(), orderId);
     }
 
