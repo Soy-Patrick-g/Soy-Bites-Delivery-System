@@ -184,7 +184,7 @@ public class RestaurantService {
                 restaurant.getAverageRating(),
                 distance == null ? null : BigDecimal.valueOf(distance).setScale(2, RoundingMode.HALF_UP).doubleValue(),
                 fee,
-                menuItemRepository.findTop3ByRestaurantIdAndAvailableTrueOrderByIdDesc(restaurant.getId()).stream()
+                menuItemRepository.findByRestaurantIdAndAvailableTrueOrderByNameAsc(restaurant.getId()).stream()
                         .map(item -> new RestaurantPreviewItemResponse(
                                 item.getId(),
                                 item.getName(),

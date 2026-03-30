@@ -359,15 +359,24 @@ public class OwnerPortalService {
     }
 
     private List<Restaurant> getRestaurantsInBrand(Restaurant restaurant) {
-        if (restaurant.getOwner() == null || restaurant.getBrandName() == null || restaurant.getBrandName().isBlank()) {
+        String normalizedBrandName = normalizeBrandName(restaurant.getBrandName());
+        if (restaurant.getOwner() == null || normalizedBrandName == null) {
             return List.of(restaurant);
         }
 
-        List<Restaurant> restaurants = restaurantRepository.findByOwnerIdAndBrandNameIgnoreCase(
-                restaurant.getOwner().getId(),
-                restaurant.getBrandName()
-        );
+        List<Restaurant> restaurants = restaurantRepository.findByOwnerId(restaurant.getOwner().getId()).stream()
+                .filter(existing -> normalizedBrandName.equals(normalizeBrandName(existing.getBrandName())))
+                .toList();
         return restaurants.isEmpty() ? List.of(restaurant) : restaurants;
+    }
+
+    private String normalizeBrandName(String brandName) {
+        if (brandName == null) {
+            return null;
+        }
+
+        String normalized = brandName.trim();
+        return normalized.isBlank() ? null : normalized.toLowerCase(Locale.ROOT);
     }
 
     private void applyMenuItemFields(MenuItem item,

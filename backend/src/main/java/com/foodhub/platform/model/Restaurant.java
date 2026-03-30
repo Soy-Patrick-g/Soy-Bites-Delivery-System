@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -63,6 +64,36 @@ public class Restaurant {
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
+        normalizeTextFields();
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        normalizeTextFields();
+    }
+
+    private void normalizeTextFields() {
+        if (name != null) {
+            name = name.trim();
+        }
+        if (brandName != null) {
+            brandName = brandName.trim();
+            if (brandName.isBlank()) {
+                brandName = null;
+            }
+        }
+        if (description != null) {
+            description = description.trim();
+        }
+        if (cuisine != null) {
+            cuisine = cuisine.trim();
+        }
+        if (address != null) {
+            address = address.trim();
+        }
+        if (city != null) {
+            city = city.trim();
+        }
     }
 
     public Long getId() {

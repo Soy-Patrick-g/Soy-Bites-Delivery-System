@@ -35,7 +35,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
       </div>
       <p className="mb-5 text-sm leading-6 text-ink/70">{restaurant.description}</p>
       <div className="mb-5 grid gap-3">
-        {previewItems.slice(0, 3).map((item) => (
+        {previewItems.map((item) => (
           <div key={item.id} className="grid grid-cols-[72px_1fr] gap-3 rounded-2xl bg-cream/80 px-3 py-3">
             <div className="relative h-[72px] overflow-hidden rounded-2xl bg-cream">
               {item.imageUrl ? (
@@ -70,6 +70,11 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
           </div>
         ))}
       </div>
+      {previewItems.length === 0 ? (
+        <p className="mb-5 rounded-2xl bg-cream/80 px-4 py-3 text-sm text-ink/70">
+          This restaurant has not published any available foods yet.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-ink/70">
         <span>{restaurant.distanceKm?.toFixed(1) ?? "Nearby"} km away</span>
         <span>{formatCurrency(restaurant.estimatedDeliveryFee ?? 0)} delivery</span>

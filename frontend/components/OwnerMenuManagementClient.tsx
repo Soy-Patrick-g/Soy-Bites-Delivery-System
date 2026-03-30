@@ -86,6 +86,33 @@ export function OwnerMenuManagementClient() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const showSlowLoadNotice = useSlowLoadNotice(isLoading || isMenuLoading);
 
+  async function loadMenuForRestaurant(token: string, restaurantId: number) {
+    const items = await getOwnerRestaurantMenu(token, restaurantId);
+    setMenuByRestaurant((current) => ({ ...current, [restaurantId]: items }));
+    return items;
+  }
+
+  async function refreshMenusForRestaurants(token: string, restaurantIds: number[]) {
+    const uniqueRestaurantIds = [...new Set(restaurantIds)];
+    await Promise.all(uniqueRestaurantIds.map((restaurantId) => loadMenuForRestaurant(token, restaurantId)));
+  }
+
+  function getBrandRestaurantIds(restaurantId: number) {
+    if (!dashboard) {
+      return [restaurantId];
+    }
+
+    const selectedRestaurant = dashboard.restaurants.find((restaurant) => restaurant.id === restaurantId);
+    if (!selectedRestaurant) {
+      return [restaurantId];
+    }
+
+    const normalizedBrandName = (selectedRestaurant.brandName || selectedRestaurant.name).trim().toLowerCase();
+    return dashboard.restaurants
+      .filter((restaurant) => (restaurant.brandName || restaurant.name).trim().toLowerCase() === normalizedBrandName)
+      .map((restaurant) => restaurant.id);
+  }
+
   useEffect(() => {
     async function load() {
       if (!session || session.role !== "RESTAURANT") {
@@ -124,8 +151,7 @@ export function OwnerMenuManagementClient() {
       try {
         setIsMenuLoading(true);
         setError(null);
-        const items = await getOwnerRestaurantMenu(session.token, selectedRestaurantId);
-        setMenuByRestaurant((current) => ({ ...current, [selectedRestaurantId]: items }));
+        await loadMenuForRestaurant(session.token, selectedRestaurantId);
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "Unable to load restaurant menu");
       } finally {
@@ -154,12 +180,16 @@ export function OwnerMenuManagementClient() {
         available: menuForm.available,
         availableInAllBranches: menuForm.allBranches
       });
-      setMenuByRestaurant((current) => ({
-        ...current,
-        [selectedRestaurantId]: [...(current[selectedRestaurantId] ?? []), created].sort((left, right) =>
-          left.name.localeCompare(right.name)
-        )
-      }));
+      if (menuForm.allBranches) {
+        await refreshMenusForRestaurants(session.token, getBrandRestaurantIds(selectedRestaurantId));
+      } else {
+        setMenuByRestaurant((current) => ({
+          ...current,
+          [selectedRestaurantId]: [...(current[selectedRestaurantId] ?? []), created].sort((left, right) =>
+            left.name.localeCompare(right.name)
+          )
+        }));
+      }
       resetMenuForm();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to create menu item");
@@ -186,12 +216,16 @@ export function OwnerMenuManagementClient() {
         available: menuForm.available,
         applyToAllBranches: menuForm.allBranches
       });
-      setMenuByRestaurant((current) => ({
-        ...current,
-        [selectedRestaurantId]: (current[selectedRestaurantId] ?? []).map((item) =>
-          item.id === editingMenuItemId ? updated : item
-        )
-      }));
+      if (menuForm.allBranches) {
+        await refreshMenusForRestaurants(session.token, getBrandRestaurantIds(selectedRestaurantId));
+      } else {
+        setMenuByRestaurant((current) => ({
+          ...current,
+          [selectedRestaurantId]: (current[selectedRestaurantId] ?? []).map((item) =>
+            item.id === editingMenuItemId ? updated : item
+          )
+        }));
+      }
       resetMenuForm();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to update menu item");
