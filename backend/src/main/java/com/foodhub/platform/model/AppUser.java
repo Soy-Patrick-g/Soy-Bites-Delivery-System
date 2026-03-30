@@ -34,6 +34,10 @@ public class AppUser {
     @Column(nullable = false)
     private UserRole role;
 
+    private String profileImageUrl;
+
+    private String vehicleType;
+
     @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean active = true;
 
@@ -120,6 +124,22 @@ public class AppUser {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public String getVehicleType() {
+        return vehicleType;
+    }
+
+    public void setVehicleType(String vehicleType) {
+        this.vehicleType = vehicleType;
     }
 
     public boolean isActive() {

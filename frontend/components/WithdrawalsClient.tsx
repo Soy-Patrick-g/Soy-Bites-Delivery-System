@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { RouteLoader } from "@/components/RouteLoader";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { formatCurrency } from "@/lib/api";
 import type { CreateWithdrawalRequest, UserRole, WithdrawalBankOption, WithdrawalDashboard, WithdrawalRecord } from "@/lib/types";
@@ -80,10 +81,24 @@ export function WithdrawalsClient(props: WithdrawalsClientProps) {
     () => banks.filter((bank) => bank.type === form.destinationType),
     [banks, form.destinationType]
   );
+  const trimmedAccountNumber = form.accountNumber.trim();
+  const trimmedAccountName = form.accountName.trim();
+  const canSubmitWithdrawal = !isSubmitting
+    && dashboard !== null
+    && dashboard.availableBalance > 0
+    && !!form.bankCode
+    && !!trimmedAccountNumber
+    && !!trimmedAccountName
+    && Number(form.amount) > 0;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!session || !dashboard) {
+      return;
+    }
+
+    if (!trimmedAccountNumber || !trimmedAccountName) {
+      setError("Enter the account or mobile money number and the registered account name before requesting a withdrawal.");
       return;
     }
 
@@ -93,11 +108,14 @@ export function WithdrawalsClient(props: WithdrawalsClientProps) {
       setSuccessMessage(null);
       const record = await props.createWithdrawal(session.token, {
         ...form,
+        accountNumber: trimmedAccountNumber,
+        accountName: trimmedAccountName,
+        reason: form.reason?.trim() || "",
         amount: Number(form.amount)
       });
       const nextDashboard = await props.getDashboard(session.token);
       setDashboard(nextDashboard);
-      setSuccessMessage(`Withdrawal request ${record.reference} was submitted successfully.`);
+      setSuccessMessage(`Withdrawal request ${record.reference} was submitted and is now waiting for admin approval.`);
       setForm((current) => ({
         ...current,
         amount: nextDashboard.availableBalance > 0 ? Number(nextDashboard.availableBalance.toFixed(2)) : 0,
@@ -133,14 +151,13 @@ export function WithdrawalsClient(props: WithdrawalsClientProps) {
   if (!isReady || isLoading) {
     return (
       <Shell eyebrow={props.eyebrow} title={props.title}>
-        <div className="space-y-3">
-          <p className="text-sm text-ink/70">Loading withdrawal tools...</p>
-          {showSlowLoadNotice ? (
-            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
-              This is taking longer than usual, but your withdrawal details are still loading.
-            </p>
-          ) : null}
-        </div>
+        <RouteLoader
+          fullScreen={false}
+          title="Preparing withdrawals"
+          message={showSlowLoadNotice
+            ? "This is taking longer than usual, but your withdrawal details are still loading."
+            : "Loading your payout tools and withdrawal history."}
+        />
       </Shell>
     );
   }
@@ -201,17 +218,34 @@ export function WithdrawalsClient(props: WithdrawalsClientProps) {
           <p className="mt-2 text-sm text-cream/65">{dashboard.email}</p>
 
           <div className="mt-6 rounded-3xl bg-white/8 p-5">
-            <p className="text-xs uppercase tracking-[0.16em] text-citrus">Available balance</p>
-            <p className="mt-3 text-3xl font-semibold">{formatCurrency(dashboard.availableBalance)}</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-citrus">Wallet balance</p>
+            <p className="mt-3 break-words text-[clamp(1.55rem,2.7vw,2.25rem)] font-semibold leading-tight">{formatCurrency(dashboard.walletBalance)}</p>
             <p className="mt-2 text-sm text-cream/68">
-              This is the amount currently ready to withdraw to your selected payout destination.
+              This is the total balance currently sitting in your payout wallet.
             </p>
           </div>
 
-          <div className="mt-6 rounded-3xl bg-white/8 p-5">
-            <p className="text-xs uppercase tracking-[0.16em] text-citrus">Recent withdrawal count</p>
-            <p className="mt-3 text-3xl font-semibold">{dashboard.withdrawals.length}</p>
-            <p className="mt-2 text-sm text-cream/68">Every payout attempt stays in your history for traceability.</p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Reserved balance</p>
+              <p className="mt-3 break-words text-[clamp(1.35rem,2.2vw,2rem)] font-semibold leading-tight">{formatCurrency(dashboard.reservedBalance)}</p>
+              <p className="mt-2 text-sm text-cream/68">Pending and approved requests waiting for admin action or payout.</p>
+            </div>
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Available now</p>
+              <p className="mt-3 break-words text-[clamp(1.35rem,2.2vw,2rem)] font-semibold leading-tight">{formatCurrency(dashboard.availableBalance)}</p>
+              <p className="mt-2 text-sm text-cream/68">Amount that can be requested right now.</p>
+            </div>
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Withdrawn total</p>
+              <p className="mt-3 break-words text-[clamp(1.35rem,2.2vw,2rem)] font-semibold leading-tight">{formatCurrency(dashboard.withdrawnTotal)}</p>
+              <p className="mt-2 text-sm text-cream/68">Successful payouts already processed.</p>
+            </div>
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Recent withdrawal count</p>
+              <p className="mt-3 break-words text-[clamp(1.35rem,2.2vw,2rem)] font-semibold leading-tight">{dashboard.withdrawals.length}</p>
+              <p className="mt-2 text-sm text-cream/68">Every payout attempt stays in your history for traceability.</p>
+            </div>
           </div>
 
           <div className="mt-6">
@@ -266,6 +300,7 @@ export function WithdrawalsClient(props: WithdrawalsClientProps) {
                 onChange={(event) => setForm((current) => ({ ...current, accountNumber: event.target.value }))}
                 className={FIELD_CLASS}
                 placeholder={form.destinationType === "mobile_money" ? "0551234567" : "0123456789"}
+                required
               />
             </FormField>
 
@@ -275,6 +310,7 @@ export function WithdrawalsClient(props: WithdrawalsClientProps) {
                 onChange={(event) => setForm((current) => ({ ...current, accountName: event.target.value }))}
                 className={FIELD_CLASS}
                 placeholder="Registered account name"
+                required
               />
             </FormField>
 
@@ -302,7 +338,7 @@ export function WithdrawalsClient(props: WithdrawalsClientProps) {
             <div className="md:col-span-2 flex flex-wrap items-center gap-3">
               <button
                 type="submit"
-                disabled={isSubmitting || dashboard.availableBalance <= 0 || !form.bankCode}
+                disabled={!canSubmitWithdrawal}
                 className="rounded-full bg-ember px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {isSubmitting ? "Submitting..." : "Request withdrawal"}
@@ -310,6 +346,11 @@ export function WithdrawalsClient(props: WithdrawalsClientProps) {
               <p className="text-sm text-ink/65">
                 Available now: {formatCurrency(dashboard.availableBalance)}
               </p>
+              {!trimmedAccountNumber || !trimmedAccountName ? (
+                <p className="text-sm text-ink/60">
+                  Add the payout number and registered account name to continue.
+                </p>
+              ) : null}
             </div>
           </form>
         </div>
@@ -404,14 +445,15 @@ function FormField({ label, children }: { label: string; children: ReactNode }) 
 
 function StatusPill({ status }: { status: WithdrawalRecord["status"] }) {
   const styles = {
-    PROCESSING: "bg-amber-100 text-amber-700",
-    COMPLETED: "bg-emerald-100 text-emerald-700",
-    FAILED: "bg-red-100 text-red-700"
+    PENDING: "bg-amber-100 text-amber-700",
+    APPROVED: "bg-sky-100 text-sky-700",
+    REJECTED: "bg-red-100 text-red-700",
+    PAID: "bg-emerald-100 text-emerald-700"
   } satisfies Record<WithdrawalRecord["status"], string>;
 
   return (
     <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${styles[status]}`}>
-      {status === "PROCESSING" ? "Processing" : status === "COMPLETED" ? "Completed" : "Failed"}
+      {status === "PENDING" ? "Pending" : status === "APPROVED" ? "Approved" : status === "PAID" ? "Paid" : "Rejected"}
     </span>
   );
 }

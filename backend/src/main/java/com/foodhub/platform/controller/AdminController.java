@@ -8,7 +8,9 @@ import com.foodhub.platform.dto.AdminRestaurantResponse;
 import com.foodhub.platform.dto.AdminSessionResponse;
 import com.foodhub.platform.dto.AdminTransactionResponse;
 import com.foodhub.platform.dto.AdminUserInsightResponse;
+import com.foodhub.platform.dto.AdminWithdrawalResponse;
 import com.foodhub.platform.dto.OrderResponse;
+import com.foodhub.platform.dto.RejectWithdrawalRequest;
 import com.foodhub.platform.dto.UpdateAccountStatusRequest;
 import com.foodhub.platform.dto.UpdateDeliveryCommissionStatusRequest;
 import com.foodhub.platform.dto.UpdateDeliverySettingsRequest;
@@ -18,6 +20,7 @@ import com.foodhub.platform.service.AdminDashboardService;
 import com.foodhub.platform.service.DeliveryCommissionService;
 import com.foodhub.platform.service.DeliverySettingsService;
 import com.foodhub.platform.service.OrderService;
+import com.foodhub.platform.service.WithdrawalService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -43,15 +46,18 @@ public class AdminController {
     private final OrderService orderService;
     private final DeliverySettingsService deliverySettingsService;
     private final DeliveryCommissionService deliveryCommissionService;
+    private final WithdrawalService withdrawalService;
 
     public AdminController(AdminDashboardService adminDashboardService,
                            OrderService orderService,
                            DeliverySettingsService deliverySettingsService,
-                           DeliveryCommissionService deliveryCommissionService) {
+                           DeliveryCommissionService deliveryCommissionService,
+                           WithdrawalService withdrawalService) {
         this.adminDashboardService = adminDashboardService;
         this.orderService = orderService;
         this.deliverySettingsService = deliverySettingsService;
         this.deliveryCommissionService = deliveryCommissionService;
+        this.withdrawalService = withdrawalService;
     }
 
     @GetMapping("/dashboard")
@@ -122,6 +128,28 @@ public class AdminController {
     @GetMapping("/delivery-commissions")
     public List<AdminDeliveryCommissionResponse> deliveryCommissions() {
         return adminDashboardService.getDeliveryCommissions();
+    }
+
+    @GetMapping("/withdrawals")
+    public List<AdminWithdrawalResponse> withdrawals() {
+        return withdrawalService.getAdminWithdrawals();
+    }
+
+    @PatchMapping("/withdrawals/{withdrawalId}/approve")
+    public AdminWithdrawalResponse approveWithdrawal(@PathVariable Long withdrawalId, Authentication authentication) {
+        return withdrawalService.approveWithdrawal(withdrawalId, authentication.getName());
+    }
+
+    @PatchMapping("/withdrawals/{withdrawalId}/reject")
+    public AdminWithdrawalResponse rejectWithdrawal(@PathVariable Long withdrawalId,
+                                                    @RequestBody(required = false) RejectWithdrawalRequest request,
+                                                    Authentication authentication) {
+        return withdrawalService.rejectWithdrawal(withdrawalId, authentication.getName(), request == null ? null : request.reason());
+    }
+
+    @PatchMapping("/withdrawals/{withdrawalId}/pay")
+    public AdminWithdrawalResponse payWithdrawal(@PathVariable Long withdrawalId, Authentication authentication) {
+        return withdrawalService.processApprovedWithdrawal(withdrawalId, authentication.getName());
     }
 
     @PatchMapping("/delivery-commissions/{commissionId}/status")

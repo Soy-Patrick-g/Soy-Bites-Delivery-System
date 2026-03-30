@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCart } from "@/components/CartProvider";
@@ -27,7 +28,8 @@ export function Header() {
       ? [
           { href: "/", label: "Discover" },
           { href: "/checkout", label: `Cart${isCartReady && itemCount > 0 ? ` (${itemCount})` : ""}` },
-          { href: "/dashboard", label: "Dashboard" }
+          { href: "/dashboard", label: "Dashboard" },
+          { href: "/settings", label: "Settings" }
         ]
       : isAdmin
         ? [{ href: "/admin", label: "Admin dashboard" }]
@@ -40,7 +42,8 @@ export function Header() {
           : isDelivery
             ? [
                 { href: "/delivery/dashboard", label: "Delivery dashboard" },
-                { href: "/delivery/withdrawals", label: "Withdrawals" }
+                { href: "/delivery/withdrawals", label: "Withdrawals" },
+                { href: "/delivery/settings", label: "Settings" }
               ]
             : [];
 
@@ -59,6 +62,11 @@ export function Header() {
           <ThemeToggle />
           {isReady && session ? (
             <>
+              <Avatar
+                name={session.fullName}
+                src={session.profileImageUrl}
+                className="h-10 w-10 border border-white/15"
+              />
               <span className="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-[0.16em] text-cream/70">
                 {session.role}
               </span>

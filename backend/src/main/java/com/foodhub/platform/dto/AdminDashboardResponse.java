@@ -21,6 +21,10 @@ public record AdminDashboardResponse(
         BigDecimal totalCommissionOwed,
         BigDecimal pendingCommissionTotal,
         BigDecimal paidCommissionTotal,
+        BigDecimal pendingWithdrawalTotal,
+        BigDecimal approvedWithdrawalTotal,
+        BigDecimal paidWithdrawalTotal,
+        BigDecimal rejectedWithdrawalTotal,
         List<AdminDeliveryPersonnelEarningsResponse> deliveryPersonnelEarnings,
         List<AdminTrendPointResponse> volumeTrends,
         List<RestaurantSummaryResponse> topRestaurants

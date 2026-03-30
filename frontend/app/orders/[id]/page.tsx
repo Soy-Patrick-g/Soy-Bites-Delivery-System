@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { CompletedOrderSpotlight } from "@/components/CompletedOrderSpotlight";
 import Link from "next/link";
 import { LocationMap } from "@/components/LocationMap";
 import { OrderReviewPanel } from "@/components/OrderReviewPanel";
@@ -140,6 +141,8 @@ export default async function OrderPage({ params }: OrderPageProps) {
           </p>
         </aside>
       </section>
+
+      <CompletedOrderSpotlight order={order} />
 
       <section className="mt-8">
         <OrderReviewPanel

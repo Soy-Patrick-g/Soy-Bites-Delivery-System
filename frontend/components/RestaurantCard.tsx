@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { StarRatingDisplay } from "@/components/StarRatingDisplay";
 import { useCart } from "@/components/CartProvider";
 import { formatCurrency } from "@/lib/api";
 import { RestaurantPreviewItem, RestaurantSummary } from "@/lib/types";
@@ -26,9 +27,11 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
             <p className="mt-1 text-xs uppercase tracking-[0.16em] text-olive">Branch</p>
           ) : null}
         </div>
-        <span className="rounded-full bg-citrus/20 px-3 py-1 text-sm font-medium text-ink">
-          {restaurant.averageRating.toFixed(1)} / 5
-        </span>
+        <StarRatingDisplay
+          rating={restaurant.averageRating}
+          showValue
+          className="rounded-full bg-citrus/20 px-3 py-2 text-sm font-medium text-ink"
+        />
       </div>
       <p className="mb-5 text-sm leading-6 text-ink/70">{restaurant.description}</p>
       <div className="mb-5 grid gap-3">

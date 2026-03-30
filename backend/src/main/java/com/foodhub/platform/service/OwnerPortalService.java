@@ -50,6 +50,7 @@ public class OwnerPortalService {
     private final PaymentService paymentService;
     private final GeoService geoService;
     private final CloudinaryImageService cloudinaryImageService;
+    private final WithdrawalService withdrawalService;
 
     public OwnerPortalService(AppUserRepository appUserRepository,
                               MenuItemRepository menuItemRepository,
@@ -62,7 +63,8 @@ public class OwnerPortalService {
                               AuditLogService auditLogService,
                               PaymentService paymentService,
                               GeoService geoService,
-                              CloudinaryImageService cloudinaryImageService) {
+                              CloudinaryImageService cloudinaryImageService,
+                              WithdrawalService withdrawalService) {
         this.appUserRepository = appUserRepository;
         this.menuItemRepository = menuItemRepository;
         this.restaurantRepository = restaurantRepository;
@@ -75,6 +77,7 @@ public class OwnerPortalService {
         this.paymentService = paymentService;
         this.geoService = geoService;
         this.cloudinaryImageService = cloudinaryImageService;
+        this.withdrawalService = withdrawalService;
     }
 
     @Transactional
@@ -112,7 +115,7 @@ public class OwnerPortalService {
                 session.getSessionId()
         );
         auditLogService.log(owner.getEmail(), owner.getRole(), "OWNER_REGISTER", "RESTAURANT", String.valueOf(restaurant.getId()), "Restaurant owner registered with first branch");
-        return new AuthResponse(token, owner.getFullName(), owner.getEmail(), owner.getRole(), session.getExpiresAt());
+        return new AuthResponse(token, owner.getFullName(), owner.getEmail(), owner.getRole(), owner.getProfileImageUrl(), session.getExpiresAt());
     }
 
     @Transactional
@@ -154,8 +157,22 @@ public class OwnerPortalService {
                 .filter(order -> order.getPaymentStatus() == PaymentStatus.PAID)
                 .map(FoodOrder::getSubtotal)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        var walletBalance = owner.getAccountBalance();
+        var reservedBalance = withdrawalService.getReservedBalanceForUser(owner.getId());
+        var availableBalance = withdrawalService.getAvailableBalance(owner);
+        var withdrawnTotal = withdrawalService.getWithdrawnTotalForUser(owner.getId());
 
-        return new OwnerDashboardResponse(owner.getFullName(), owner.getEmail(), allocatedRevenue, restaurants, orders);
+        return new OwnerDashboardResponse(
+                owner.getFullName(),
+                owner.getEmail(),
+                allocatedRevenue,
+                walletBalance,
+                reservedBalance,
+                availableBalance,
+                withdrawnTotal,
+                restaurants,
+                orders
+        );
     }
 
     @Transactional
@@ -392,10 +409,16 @@ public class OwnerPortalService {
         return new OrderResponse(
                 order.getId(),
                 order.getGroupReference(),
+                order.getRestaurant().getId(),
                 order.getRestaurant().getName(),
+                order.getRestaurant().getAverageRating(),
                 order.getCustomer().getFullName(),
+                order.getCustomer().getProfileImageUrl(),
                 order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getFullName(),
                 order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getEmail(),
+                order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getProfileImageUrl(),
+                order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getVehicleType(),
+                order.getDeliveryPerson() == null ? null : orderRepository.countByDeliveryPersonId(order.getDeliveryPerson().getId()),
                 order.getStatus(),
                 order.getPaymentStatus(),
                 order.getPaymentReference(),
@@ -410,6 +433,7 @@ public class OwnerPortalService {
                 order.getSubtotal(),
                 order.getTotal(),
                 order.getCreatedAt(),
+                order.getStatus() == OrderStatus.DELIVERED ? order.getUpdatedAt() : null,
                 items,
                 false,
                 payment

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { LocationPicker } from "@/components/LocationPicker";
 import { PasswordField } from "@/components/PasswordField";
+import { ProfileImagePicker } from "@/components/ProfileImagePicker";
 import { registerDeliveryPerson } from "@/lib/api";
 import type { LocationSelection } from "@/lib/location";
 import { isStrongPassword, STRONG_PASSWORD_RULE } from "@/lib/password";
@@ -21,6 +22,7 @@ export default function DeliveryRegisterPage() {
     vehicleType: ""
   });
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState<LocationSelection>({
     address: "",
     city: "",
@@ -48,6 +50,8 @@ export default function DeliveryRegisterPage() {
       setError(null);
       const session = await registerDeliveryPerson({
         ...form,
+        confirmPassword,
+        profileImageUrl,
         city: location.city || form.city,
         latitude: location.latitude,
         longitude: location.longitude
@@ -81,6 +85,14 @@ export default function DeliveryRegisterPage() {
             <Field label="Vehicle type" value={form.vehicleType} onChange={(value) => setForm({ ...form, vehicleType: value })} />
             <div className="md:col-span-2 rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
               Strong password required: {STRONG_PASSWORD_RULE}
+            </div>
+            <div className="md:col-span-2">
+              <ProfileImagePicker
+                name={form.fullName || "FoodHub rider"}
+                imageUrl={profileImageUrl}
+                onChange={setProfileImageUrl}
+                description="Upload a rider photo now or continue with the default avatar."
+              />
             </div>
             <div className="md:col-span-2">
               <LocationPicker

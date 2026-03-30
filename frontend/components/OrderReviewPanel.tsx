@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { StarRatingInput } from "@/components/StarRatingInput";
 import { addRestaurantReview } from "@/lib/api";
 
 type OrderReviewPanelProps = {
@@ -16,7 +17,7 @@ type OrderReviewPanelProps = {
 export function OrderReviewPanel({ orderId, orderStatus, restaurantName, reviewed }: OrderReviewPanelProps) {
   const { isReady, session } = useAuth();
   const router = useRouter();
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(4.5);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,19 +107,8 @@ export function OrderReviewPanel({ orderId, orderStatus, restaurantName, reviewe
       <form className="mt-6 space-y-5" onSubmit={(event) => void handleSubmit(event)}>
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-olive">Rating</p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            {[1, 2, 3, 4, 5].map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setRating(value)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  rating === value ? "bg-citrus text-ink" : "border border-ink/15 bg-white text-ink"
-                }`}
-              >
-                {value} star{value === 1 ? "" : "s"}
-              </button>
-            ))}
+          <div className="mt-3">
+            <StarRatingInput id={`review-rating-${orderId}`} value={rating} onChange={setRating} />
           </div>
         </div>
 

@@ -32,7 +32,7 @@ public class AccountWithdrawal {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private WithdrawalStatus status = WithdrawalStatus.PROCESSING;
+    private WithdrawalStatus status = WithdrawalStatus.PENDING;
 
     @Column(nullable = false)
     private String provider = "PAYSTACK";
@@ -43,6 +43,8 @@ public class AccountWithdrawal {
     private String recipientCode;
 
     private String transferCode;
+
+    private String paystackReference;
 
     @Column(nullable = false)
     private String destinationType;
@@ -61,6 +63,10 @@ public class AccountWithdrawal {
     private String providerStatus;
 
     private String failureReason;
+
+    private String reviewedByEmail;
+
+    private Instant reviewedAt;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -136,6 +142,14 @@ public class AccountWithdrawal {
         this.transferCode = transferCode;
     }
 
+    public String getPaystackReference() {
+        return paystackReference;
+    }
+
+    public void setPaystackReference(String paystackReference) {
+        this.paystackReference = paystackReference;
+    }
+
     public String getDestinationType() {
         return destinationType;
     }
@@ -190,6 +204,22 @@ public class AccountWithdrawal {
 
     public void setFailureReason(String failureReason) {
         this.failureReason = failureReason;
+    }
+
+    public String getReviewedByEmail() {
+        return reviewedByEmail;
+    }
+
+    public void setReviewedByEmail(String reviewedByEmail) {
+        this.reviewedByEmail = reviewedByEmail;
+    }
+
+    public Instant getReviewedAt() {
+        return reviewedAt;
+    }
+
+    public void setReviewedAt(Instant reviewedAt) {
+        this.reviewedAt = reviewedAt;
     }
 
     public Instant getCreatedAt() {

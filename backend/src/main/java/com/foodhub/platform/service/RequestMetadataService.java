@@ -1,6 +1,7 @@
 package com.foodhub.platform.service;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -17,9 +18,9 @@ public class RequestMetadataService {
 
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
+            return normalizeIpAddress(forwardedFor.split(",")[0].trim());
         }
-        return request.getRemoteAddr();
+        return normalizeIpAddress(request.getRemoteAddr());
     }
 
     public String getUserAgent() {
@@ -36,5 +37,25 @@ public class RequestMetadataService {
             return servletRequestAttributes.getRequest();
         }
         return null;
+    }
+
+    public String normalizeIpAddress(String ipAddress) {
+        if (ipAddress == null || ipAddress.isBlank()) {
+            return "unknown";
+        }
+
+        String normalized = ipAddress.trim().toLowerCase(Locale.ROOT);
+        if ("::1".equals(normalized)
+                || "0:0:0:0:0:0:0:1".equals(normalized)
+                || "[::1]".equals(normalized)
+                || "localhost".equals(normalized)) {
+            return "127.0.0.1";
+        }
+
+        if (normalized.startsWith("::ffff:")) {
+            return normalized.substring(7);
+        }
+
+        return normalized;
     }
 }

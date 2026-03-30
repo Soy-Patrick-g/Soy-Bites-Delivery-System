@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
 import { LocationMap } from "@/components/LocationMap";
 import type { MapRouteLine, MapStop } from "@/components/LocationMap";
+import { RouteLoader } from "@/components/RouteLoader";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { claimDeliveryOrder, completeDeliveryOrder, formatCurrency, getDeliveryDashboard, unclaimDeliveryOrder, updateDeliveryLocation } from "@/lib/api";
 import { getDrivingRoute } from "@/lib/location";
@@ -284,14 +286,13 @@ export function DeliveryDashboardClient() {
   if (!isReady || isLoading) {
     return (
       <Shell>
-        <div className="space-y-3">
-          <p className="text-sm text-ink/70">Loading delivery dashboard...</p>
-          {showSlowLoadNotice ? (
-            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
-              This is taking longer than usual, but the rider dashboard is still loading.
-            </p>
-          ) : null}
-        </div>
+        <RouteLoader
+          fullScreen={false}
+          title="Preparing rider dashboard"
+          message={showSlowLoadNotice
+            ? "This is taking longer than usual, but the rider dashboard is still loading."
+            : "Loading live routes, earnings, and delivery tools."}
+        />
       </Shell>
     );
   }
@@ -350,8 +351,20 @@ export function DeliveryDashboardClient() {
       <section className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="rounded-[32px] bg-ink p-5 text-cream shadow-soft sm:p-6 lg:p-8">
           <p className="text-sm uppercase tracking-[0.18em] text-citrus">Rider profile</p>
-          <h2 className="mt-3 text-3xl font-semibold">{dashboard?.driverName}</h2>
-          <p className="mt-2 text-sm text-cream/65">{dashboard?.driverEmail}</p>
+          <div className="mt-4 flex items-center gap-4">
+            <Avatar
+              name={dashboard.driverName}
+              src={session.profileImageUrl}
+              className="h-16 w-16 border border-white/12"
+            />
+            <div>
+              <h2 className="text-3xl font-semibold">{dashboard.driverName}</h2>
+              <p className="mt-2 text-sm text-cream/65">{dashboard.driverEmail}</p>
+            </div>
+          </div>
+          <Link href="/delivery/settings" className="mt-4 inline-flex text-sm font-semibold text-citrus">
+            Edit rider profile
+          </Link>
 
           <div className="mt-8 grid gap-4">
             <article className="rounded-3xl bg-white/8 p-5">
@@ -406,21 +419,37 @@ export function DeliveryDashboardClient() {
           <section className="mt-6">
             <p className="text-xs uppercase tracking-[0.16em] text-olive">Your earnings</p>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <article className="rounded-3xl bg-cream px-4 py-4">
+              <article className="min-w-0 rounded-3xl bg-cream px-4 py-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-olive">Total earned</p>
-                <p className="mt-2 text-2xl font-semibold text-ink">{formatCurrency(earnings.totalEarnings)}</p>
+                <p className="mt-2 break-words text-[clamp(1.4rem,2.2vw,2rem)] font-semibold leading-tight text-ink">{formatCurrency(earnings.totalEarnings)}</p>
               </article>
-              <article className="rounded-3xl bg-cream px-4 py-4">
+              <article className="min-w-0 rounded-3xl bg-cream px-4 py-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-olive">Pending payout</p>
-                <p className="mt-2 text-2xl font-semibold text-ink">{formatCurrency(earnings.pendingEarnings)}</p>
+                <p className="mt-2 break-words text-[clamp(1.4rem,2.2vw,2rem)] font-semibold leading-tight text-ink">{formatCurrency(earnings.pendingEarnings)}</p>
               </article>
-              <article className="rounded-3xl bg-cream px-4 py-4">
+              <article className="min-w-0 rounded-3xl bg-cream px-4 py-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-olive">Paid out</p>
-                <p className="mt-2 text-2xl font-semibold text-ink">{formatCurrency(earnings.paidEarnings)}</p>
+                <p className="mt-2 break-words text-[clamp(1.4rem,2.2vw,2rem)] font-semibold leading-tight text-ink">{formatCurrency(earnings.paidEarnings)}</p>
               </article>
-              <article className="rounded-3xl bg-cream px-4 py-4">
+              <article className="min-w-0 rounded-3xl bg-cream px-4 py-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-olive">Completed deliveries</p>
-                <p className="mt-2 text-2xl font-semibold text-ink">{earnings.completedDeliveries}</p>
+                <p className="mt-2 break-words text-[clamp(1.4rem,2.2vw,2rem)] font-semibold leading-tight text-ink">{earnings.completedDeliveries}</p>
+              </article>
+              <article className="min-w-0 rounded-3xl bg-cream px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-olive">Wallet balance</p>
+                <p className="mt-2 break-words text-[clamp(1.4rem,2.2vw,2rem)] font-semibold leading-tight text-ink">{formatCurrency(dashboard.walletBalance)}</p>
+              </article>
+              <article className="min-w-0 rounded-3xl bg-cream px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-olive">Reserved balance</p>
+                <p className="mt-2 break-words text-[clamp(1.4rem,2.2vw,2rem)] font-semibold leading-tight text-ink">{formatCurrency(dashboard.reservedBalance)}</p>
+              </article>
+              <article className="min-w-0 rounded-3xl bg-cream px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-olive">Available balance</p>
+                <p className="mt-2 break-words text-[clamp(1.4rem,2.2vw,2rem)] font-semibold leading-tight text-ink">{formatCurrency(dashboard.availableBalance)}</p>
+              </article>
+              <article className="min-w-0 rounded-3xl bg-cream px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-olive">Withdrawn total</p>
+                <p className="mt-2 break-words text-[clamp(1.4rem,2.2vw,2rem)] font-semibold leading-tight text-ink">{formatCurrency(dashboard.withdrawnTotal)}</p>
               </article>
             </div>
           </section>

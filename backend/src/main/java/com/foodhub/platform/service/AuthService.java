@@ -89,6 +89,7 @@ public class AuthService {
         user.setEmail(request.email());
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setRole(request.role());
+        user.setProfileImageUrl(blankToNull(request.profileImageUrl()));
         user.setLatitude(request.latitude());
         user.setLongitude(request.longitude());
         appUserRepository.save(user);
@@ -100,7 +101,7 @@ public class AuthService {
                 session.getSessionId()
         );
         auditLogService.log(user.getEmail(), user.getRole(), "AUTH_REGISTER", "USER", String.valueOf(user.getId()), "User self-registered");
-        return new AuthResponse(token, user.getFullName(), user.getEmail(), user.getRole(), session.getExpiresAt());
+        return new AuthResponse(token, user.getFullName(), user.getEmail(), user.getRole(), user.getProfileImageUrl(), session.getExpiresAt());
     }
 
     @Transactional
@@ -122,7 +123,7 @@ public class AuthService {
                 session.getSessionId()
         );
         auditLogService.log(user.getEmail(), user.getRole(), "AUTH_LOGIN", "USER", String.valueOf(user.getId()), "User signed in");
-        return new AuthResponse(token, user.getFullName(), user.getEmail(), user.getRole(), session.getExpiresAt());
+        return new AuthResponse(token, user.getFullName(), user.getEmail(), user.getRole(), user.getProfileImageUrl(), session.getExpiresAt());
     }
 
     @Transactional
@@ -236,5 +237,9 @@ public class AuthService {
         }
 
         return passwordResetToken;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 }

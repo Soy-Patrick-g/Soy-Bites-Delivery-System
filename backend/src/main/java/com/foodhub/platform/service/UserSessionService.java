@@ -34,7 +34,7 @@ public class UserSessionService {
     public UserSession createSession(AppUser user, Instant expiresAt) {
         deactivateExpiredSessions();
 
-        String ipAddress = requestMetadataService.getClientIpAddress();
+        String ipAddress = requestMetadataService.normalizeIpAddress(requestMetadataService.getClientIpAddress());
         List<UserSession> activeSessions = userSessionRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
                 .filter(session -> session.isActive() && session.getExpiresAt().isAfter(Instant.now()))
                 .toList();
@@ -69,11 +69,6 @@ public class UserSessionService {
             return false;
         }
         if (!session.getUser().isActive()) {
-            session.setActive(false);
-            userSessionRepository.save(session);
-            return false;
-        }
-        if (!session.getIpAddress().equals(requestMetadataService.getClientIpAddress())) {
             session.setActive(false);
             userSessionRepository.save(session);
             return false;

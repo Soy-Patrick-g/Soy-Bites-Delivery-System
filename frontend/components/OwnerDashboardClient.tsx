@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { RouteLoader } from "@/components/RouteLoader";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { advanceOwnerOrder, formatCurrency, getOwnerDashboard } from "@/lib/api";
 import { formatOrderStatus, formatPaymentStatus } from "@/lib/order-display";
@@ -64,14 +65,13 @@ export function OwnerDashboardClient() {
   if (!isReady || isLoading) {
     return (
       <Shell>
-        <div className="space-y-3">
-          <p className="text-sm text-ink/70">Loading restaurant dashboard...</p>
-          {showSlowLoadNotice ? (
-            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
-              This page is taking longer to load. The request is still running.
-            </p>
-          ) : null}
-        </div>
+        <RouteLoader
+          fullScreen={false}
+          title="Preparing restaurant dashboard"
+          message={showSlowLoadNotice
+            ? "This is taking longer than usual, but your restaurant dashboard is still loading."
+            : "Loading orders, revenue, and storefront performance."}
+        />
       </Shell>
     );
   }
@@ -119,10 +119,32 @@ export function OwnerDashboardClient() {
           <p className="text-sm uppercase tracking-[0.18em] text-citrus">Owner profile</p>
           <h2 className="mt-3 text-3xl font-semibold">{dashboard?.ownerName}</h2>
           <p className="mt-2 text-sm text-cream/65">{dashboard?.ownerEmail}</p>
-          <div className="mt-6 rounded-3xl bg-white/8 p-5">
-            <p className="text-xs uppercase tracking-[0.16em] text-citrus">Allocated revenue</p>
-            <p className="mt-3 text-3xl font-semibold">{formatCurrency(dashboard?.allocatedRevenue ?? 0)}</p>
-            <p className="mt-2 text-sm text-cream/68">Paid food revenue currently allocated to your restaurants.</p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Allocated revenue</p>
+              <p className="mt-3 break-words text-[clamp(1.5rem,2.5vw,2.2rem)] font-semibold leading-tight">{formatCurrency(dashboard?.allocatedRevenue ?? 0)}</p>
+              <p className="mt-2 text-sm text-cream/68">Paid food revenue currently allocated to your restaurants.</p>
+            </div>
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Wallet balance</p>
+              <p className="mt-3 break-words text-[clamp(1.5rem,2.5vw,2.2rem)] font-semibold leading-tight">{formatCurrency(dashboard?.walletBalance ?? 0)}</p>
+              <p className="mt-2 text-sm text-cream/68">Current owner wallet before pending withdrawal reservations.</p>
+            </div>
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Reserved balance</p>
+              <p className="mt-3 break-words text-[clamp(1.5rem,2.5vw,2.2rem)] font-semibold leading-tight">{formatCurrency(dashboard?.reservedBalance ?? 0)}</p>
+              <p className="mt-2 text-sm text-cream/68">Pending and approved withdrawals that are waiting to be paid.</p>
+            </div>
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Available to withdraw</p>
+              <p className="mt-3 break-words text-[clamp(1.5rem,2.5vw,2.2rem)] font-semibold leading-tight">{formatCurrency(dashboard?.availableBalance ?? 0)}</p>
+              <p className="mt-2 text-sm text-cream/68">Amount that can be requested right now.</p>
+            </div>
+            <div className="min-w-0 rounded-3xl bg-white/8 p-5 sm:col-span-2">
+              <p className="text-xs uppercase tracking-[0.16em] text-citrus">Withdrawn total</p>
+              <p className="mt-3 break-words text-[clamp(1.5rem,2.5vw,2.2rem)] font-semibold leading-tight">{formatCurrency(dashboard?.withdrawnTotal ?? 0)}</p>
+              <p className="mt-2 text-sm text-cream/68">Successful payouts already sent to your payout destination.</p>
+            </div>
           </div>
 
           <div className="mt-8 grid gap-4">

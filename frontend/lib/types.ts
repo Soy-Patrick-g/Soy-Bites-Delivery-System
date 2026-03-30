@@ -34,8 +34,9 @@ export type RestaurantPreviewItem = {
 export type Review = {
   id: number;
   customerName: string;
+  customerProfileImageUrl?: string | null;
   rating: number;
-  comment: string;
+  comment?: string | null;
   createdAt: string;
 };
 
@@ -91,10 +92,16 @@ export type OrderItem = {
 export type Order = {
   id: number;
   groupReference?: string | null;
+  restaurantId: number;
   restaurantName: string;
+  restaurantAverageRating: number;
   customerName: string;
+  customerProfileImageUrl?: string | null;
   deliveryPersonName?: string | null;
   deliveryPersonEmail?: string | null;
+  deliveryPersonProfileImageUrl?: string | null;
+  deliveryPersonVehicleType?: string | null;
+  deliveryPersonCompletedDeliveries?: number | null;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentReference: string;
@@ -109,6 +116,7 @@ export type Order = {
   ownerAllocation: number;
   total: number;
   createdAt: string;
+  completedAt?: string | null;
   items: OrderItem[];
   reviewed: boolean;
   payment?: PaymentInitialization | null;
@@ -237,6 +245,28 @@ export type AdminRestaurant = {
   createdAt: string;
 };
 
+export type AdminWithdrawal = {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userRole: "DELIVERY" | "RESTAURANT";
+  amount: number;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "PAID";
+  provider: string;
+  reference: string;
+  paystackReference?: string | null;
+  destinationType: "ghipss" | "mobile_money";
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  reason?: string | null;
+  failureReason?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+  processedAt?: string | null;
+};
+
 export type AdminDashboard = {
   totalRestaurants: number;
   totalOrders: number;
@@ -255,6 +285,10 @@ export type AdminDashboard = {
   totalCommissionOwed: number;
   pendingCommissionTotal: number;
   paidCommissionTotal: number;
+  pendingWithdrawalTotal: number;
+  approvedWithdrawalTotal: number;
+  paidWithdrawalTotal: number;
+  rejectedWithdrawalTotal: number;
   deliveryPersonnelEarnings: AdminDeliveryPersonnelEarnings[];
   volumeTrends: AdminTrendPoint[];
   topRestaurants: RestaurantSummary[];
@@ -270,6 +304,10 @@ export type OwnerDashboard = {
   ownerName: string;
   ownerEmail: string;
   allocatedRevenue: number;
+  walletBalance: number;
+  reservedBalance: number;
+  availableBalance: number;
+  withdrawnTotal: number;
   restaurants: RestaurantSummary[];
   orders: Order[];
 };
@@ -283,9 +321,10 @@ export type WithdrawalBankOption = {
 export type WithdrawalRecord = {
   id: number;
   amount: number;
-  status: "PROCESSING" | "COMPLETED" | "FAILED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "PAID";
   provider: string;
   reference: string;
+  paystackReference?: string | null;
   destinationType: "ghipss" | "mobile_money";
   bankCode: string;
   accountNumber: string;
@@ -293,13 +332,17 @@ export type WithdrawalRecord = {
   reason?: string | null;
   failureReason?: string | null;
   createdAt: string;
+  reviewedAt?: string | null;
   processedAt?: string | null;
 };
 
 export type WithdrawalDashboard = {
   fullName: string;
   email: string;
+  walletBalance: number;
+  reservedBalance: number;
   availableBalance: number;
+  withdrawnTotal: number;
   withdrawals: WithdrawalRecord[];
 };
 
@@ -313,6 +356,10 @@ export type DeliveryDashboard = {
   driverEmail: string;
   currentLatitude?: number | null;
   currentLongitude?: number | null;
+  walletBalance: number;
+  reservedBalance: number;
+  availableBalance: number;
+  withdrawnTotal: number;
   earnings: DeliveryEarningsSummary;
   commissions: DeliveryCommission[];
   availableOrders: Order[];
@@ -343,6 +390,7 @@ export type AuthSession = {
   fullName: string;
   email: string;
   role: UserRole;
+  profileImageUrl?: string | null;
   expiresAt?: string;
 };
 
@@ -367,6 +415,14 @@ export type RegisterUserRequest = {
   email: string;
   password: string;
   confirmPassword: string;
+  profileImageUrl?: string;
+};
+
+export type AccountProfile = {
+  fullName: string;
+  email: string;
+  role: UserRole;
+  profileImageUrl?: string | null;
 };
 
 export type ForgotPasswordRequest = {
@@ -443,10 +499,17 @@ export type DeliveryRegisterRequest = {
   fullName: string;
   email: string;
   password: string;
+  confirmPassword: string;
   city: string;
   vehicleType: string;
+  profileImageUrl?: string;
   latitude: number;
   longitude: number;
+};
+
+export type UpdateAccountProfileRequest = {
+  fullName: string;
+  profileImageUrl?: string;
 };
 
 export type CreateOwnerMenuItemRequest = {

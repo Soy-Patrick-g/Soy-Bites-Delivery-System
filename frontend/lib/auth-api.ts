@@ -10,9 +10,47 @@ import type {
   VerifyResetTokenResult
 } from "@/lib/types";
 
+const DEFAULT_AUTH_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api";
+
+function resolveAuthApiBaseUrl() {
+  if (typeof window !== "undefined") {
+    const configuredBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    return configuredBaseUrl
+      ? normalizeLoopbackApiBaseUrl(configuredBaseUrl, window.location.hostname)
+      : `${window.location.protocol}//${window.location.hostname}:8080/api`;
+  }
+
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+
+  return DEFAULT_AUTH_API_BASE_URL;
+}
+
 const authApi = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api"
+  baseURL: DEFAULT_AUTH_API_BASE_URL,
+  withCredentials: true
 });
+
+authApi.interceptors.request.use((config) => ({
+  ...config,
+  baseURL: resolveAuthApiBaseUrl()
+}));
+
+function normalizeLoopbackApiBaseUrl(baseUrl: string, browserHostname: string) {
+  try {
+    const parsed = new URL(baseUrl);
+    const hostnames = new Set(["localhost", "127.0.0.1"]);
+    if (hostnames.has(parsed.hostname) && hostnames.has(browserHostname) && parsed.hostname !== browserHostname) {
+      parsed.hostname = browserHostname;
+      return parsed.toString().replace(/\/$/, "");
+    }
+
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return baseUrl;
+  }
+}
 
 function extractServerMessage(data: unknown): string | null {
   if (typeof data === "string" && data.trim()) {
@@ -83,6 +121,7 @@ export async function registerUser(request: RegisterUserRequest): Promise<AuthSe
       email: request.email,
       password: request.password,
       confirmPassword: request.confirmPassword,
+      profileImageUrl: request.profileImageUrl,
       role: "USER"
     });
     return data;

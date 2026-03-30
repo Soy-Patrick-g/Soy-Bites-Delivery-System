@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -32,8 +33,8 @@ public class Review {
     @JoinColumn(name = "order_id")
     private FoodOrder order;
 
-    @Column(nullable = false)
-    private Integer rating;
+    @Column(nullable = false, precision = 2, scale = 1)
+    private BigDecimal rating;
 
     @Column(length = 1000)
     private String comment;
@@ -78,11 +79,11 @@ public class Review {
         this.order = order;
     }
 
-    public Integer getRating() {
+    public BigDecimal getRating() {
         return rating;
     }
 
-    public void setRating(Integer rating) {
+    public void setRating(BigDecimal rating) {
         this.rating = rating;
     }
 

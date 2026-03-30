@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { RouteLoader } from "@/components/RouteLoader";
 import { AppShell } from "@/components/layout/AppShell";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { formatCurrency, getCurrentUserOrderHistory } from "@/lib/api";
@@ -43,14 +44,13 @@ export function UserDashboardClient() {
   if (!isReady || isLoading) {
     return (
       <AppShell>
-        <div className="space-y-3">
-          <p className="text-sm text-ink/70">Loading your dashboard...</p>
-          {showSlowLoadNotice ? (
-            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
-              This is taking longer than usual, but your dashboard is still loading.
-            </p>
-          ) : null}
-        </div>
+        <RouteLoader
+          fullScreen={false}
+          title="Preparing your dashboard"
+          message={showSlowLoadNotice
+            ? "This is taking longer than usual, but your dashboard is still loading."
+            : "Loading your order history and account activity."}
+        />
       </AppShell>
     );
   }

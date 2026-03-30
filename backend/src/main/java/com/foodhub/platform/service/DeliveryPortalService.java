@@ -38,6 +38,7 @@ public class DeliveryPortalService {
     private final PaymentService paymentService;
     private final DeliveryCommissionService deliveryCommissionService;
     private final AdminRealtimeService adminRealtimeService;
+    private final WithdrawalService withdrawalService;
 
     public DeliveryPortalService(AppUserRepository appUserRepository,
                                  OrderRepository orderRepository,
@@ -48,7 +49,8 @@ public class DeliveryPortalService {
                                  AuditLogService auditLogService,
                                  PaymentService paymentService,
                                  DeliveryCommissionService deliveryCommissionService,
-                                 AdminRealtimeService adminRealtimeService) {
+                                 AdminRealtimeService adminRealtimeService,
+                                 WithdrawalService withdrawalService) {
         this.appUserRepository = appUserRepository;
         this.orderRepository = orderRepository;
         this.passwordEncoder = passwordEncoder;
@@ -59,19 +61,25 @@ public class DeliveryPortalService {
         this.paymentService = paymentService;
         this.deliveryCommissionService = deliveryCommissionService;
         this.adminRealtimeService = adminRealtimeService;
+        this.withdrawalService = withdrawalService;
     }
 
     @Transactional
     public AuthResponse registerDriver(DeliveryRegisterRequest request) {
+        if (!request.password().equals(request.confirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password and confirm password must match");
+        }
         if (appUserRepository.existsByEmailIgnoreCase(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
         }
 
         AppUser driver = new AppUser();
-        driver.setFullName(request.fullName() + " - " + request.vehicleType());
+        driver.setFullName(request.fullName());
         driver.setEmail(request.email());
         driver.setPassword(passwordEncoder.encode(request.password()));
         driver.setRole(UserRole.DELIVERY);
+        driver.setVehicleType(request.vehicleType());
+        driver.setProfileImageUrl(blankToNull(request.profileImageUrl()));
         driver.setLatitude(request.latitude());
         driver.setLongitude(request.longitude());
         appUserRepository.save(driver);
@@ -83,7 +91,7 @@ public class DeliveryPortalService {
                 session.getSessionId()
         );
         auditLogService.log(driver.getEmail(), driver.getRole(), "DELIVERY_REGISTER", "USER", String.valueOf(driver.getId()), "Driver registered");
-        return new AuthResponse(token, driver.getFullName(), driver.getEmail(), driver.getRole(), session.getExpiresAt());
+        return new AuthResponse(token, driver.getFullName(), driver.getEmail(), driver.getRole(), driver.getProfileImageUrl(), session.getExpiresAt());
     }
 
     @Transactional(readOnly = true)
@@ -107,6 +115,10 @@ public class DeliveryPortalService {
                 driver.getEmail(),
                 driver.getLatitude(),
                 driver.getLongitude(),
+                driver.getAccountBalance(),
+                withdrawalService.getReservedBalanceForUser(driver.getId()),
+                withdrawalService.getAvailableBalance(driver),
+                withdrawalService.getWithdrawnTotalForUser(driver.getId()),
                 deliveryCommissionService.getDriverSummary(driver.getId()),
                 deliveryCommissionService.getDriverCommissions(driver.getId()),
                 availableOrders,
@@ -319,10 +331,16 @@ public class DeliveryPortalService {
         return new OrderResponse(
                 order.getId(),
                 order.getGroupReference(),
+                order.getRestaurant().getId(),
                 order.getRestaurant().getName(),
+                order.getRestaurant().getAverageRating(),
                 order.getCustomer().getFullName(),
+                order.getCustomer().getProfileImageUrl(),
                 order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getFullName(),
                 order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getEmail(),
+                order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getProfileImageUrl(),
+                order.getDeliveryPerson() == null ? null : order.getDeliveryPerson().getVehicleType(),
+                order.getDeliveryPerson() == null ? null : orderRepository.countByDeliveryPersonId(order.getDeliveryPerson().getId()),
                 order.getStatus(),
                 order.getPaymentStatus(),
                 order.getPaymentReference(),
@@ -337,6 +355,7 @@ public class DeliveryPortalService {
                 order.getSubtotal(),
                 order.getTotal(),
                 order.getCreatedAt(),
+                order.getStatus() == OrderStatus.DELIVERED ? order.getUpdatedAt() : null,
                 items,
                 false,
                 payment
@@ -352,5 +371,9 @@ public class DeliveryPortalService {
                 item.getUnitPrice(),
                 item.getTotalPrice()
         );
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 }

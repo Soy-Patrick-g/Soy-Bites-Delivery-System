@@ -9,6 +9,7 @@ import { useBrowseLocation } from "@/components/BrowseLocationProvider";
 import { useCart } from "@/components/CartProvider";
 import { LocationPicker } from "@/components/LocationPicker";
 import { LocationMap } from "@/components/LocationMap";
+import { RouteLoader } from "@/components/RouteLoader";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { formatCurrency, getRestaurants, placeGroupOrder } from "@/lib/api";
 import { RestaurantSummary } from "@/lib/types";
@@ -165,14 +166,13 @@ export function CheckoutClient() {
   if (!isReady || !isCartReady || !isBrowseLocationReady || isLoading) {
     return (
       <Shell>
-        <div className="space-y-3">
-          <p className="text-sm text-ink/70">Loading checkout...</p>
-          {showSlowLoadNotice ? (
-            <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
-              This is taking longer than usual, but checkout is still loading.
-            </p>
-          ) : null}
-        </div>
+        <RouteLoader
+          fullScreen={false}
+          title="Preparing checkout"
+          message={showSlowLoadNotice
+            ? "This is taking longer than usual, but checkout is still loading."
+            : "Loading your basket, delivery location, and restaurant details."}
+        />
       </Shell>
     );
   }

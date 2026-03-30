@@ -7,6 +7,10 @@ public record OwnerDashboardResponse(
         String ownerName,
         String ownerEmail,
         BigDecimal allocatedRevenue,
+        BigDecimal walletBalance,
+        BigDecimal reservedBalance,
+        BigDecimal availableBalance,
+        BigDecimal withdrawnTotal,
         List<RestaurantSummaryResponse> restaurants,
         List<OrderResponse> orders
 ) {

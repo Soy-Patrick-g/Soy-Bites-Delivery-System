@@ -6,6 +6,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { BrowseLocationProvider } from "@/components/BrowseLocationProvider";
 import { CartProvider } from "@/components/CartProvider";
+import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
               <CartProvider>
                 <Header />
                 {children}
+                <Footer />
               </CartProvider>
             </AuthProvider>
           </BrowseLocationProvider>

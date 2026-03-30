@@ -8,6 +8,7 @@ public record AuthResponse(
         String fullName,
         String email,
         UserRole role,
+        String profileImageUrl,
         Instant expiresAt
 ) {
 }

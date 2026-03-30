@@ -30,6 +30,17 @@ public class CloudinaryImageService {
     }
 
     public ImageUploadResponse uploadMenuImage(MultipartFile file) {
+        return uploadImage(file, properties.getFolder(), false);
+    }
+
+    public ImageUploadResponse uploadProfileImage(MultipartFile file) {
+        return uploadImage(file, properties.getFolder() + "/profiles", true);
+    }
+
+    private static final String MENU_TRANSFORMATION = "q_auto,f_auto";
+    private static final String PROFILE_TRANSFORMATION = "c_fill,g_face,w_512,h_512,q_auto,f_auto";
+
+    private ImageUploadResponse uploadImage(MultipartFile file, String folder, boolean optimizeForAvatar) {
         if (!isConfigured()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -48,10 +59,13 @@ public class CloudinaryImageService {
             Map<String, Object> result = getCloudinary().uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
-                            "folder", properties.getFolder(),
+                            "folder", folder,
                             "resource_type", "image",
                             "overwrite", false,
-                            "unique_filename", true
+                            "unique_filename", true,
+                            "transformation", optimizeForAvatar
+                                    ? PROFILE_TRANSFORMATION
+                                    : MENU_TRANSFORMATION
                     )
             );
 

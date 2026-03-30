@@ -57,6 +57,7 @@ public class AdminDashboardService {
     private final AuditLogService auditLogService;
     private final DeliveryCommissionService deliveryCommissionService;
     private final DeliverySettingsService deliverySettingsService;
+    private final WithdrawalService withdrawalService;
 
     public AdminDashboardService(RestaurantRepository restaurantRepository,
                                  OrderRepository orderRepository,
@@ -69,7 +70,8 @@ public class AdminDashboardService {
                                  UserSessionService userSessionService,
                                  AuditLogService auditLogService,
                                  DeliveryCommissionService deliveryCommissionService,
-                                 DeliverySettingsService deliverySettingsService) {
+                                 DeliverySettingsService deliverySettingsService,
+                                 WithdrawalService withdrawalService) {
         this.restaurantRepository = restaurantRepository;
         this.orderRepository = orderRepository;
         this.reviewRepository = reviewRepository;
@@ -82,6 +84,7 @@ public class AdminDashboardService {
         this.auditLogService = auditLogService;
         this.deliveryCommissionService = deliveryCommissionService;
         this.deliverySettingsService = deliverySettingsService;
+        this.withdrawalService = withdrawalService;
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +113,10 @@ public class AdminDashboardService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal pendingCommissionTotal = deliveryCommissionService.getPendingCommissionTotal();
         BigDecimal paidCommissionTotal = deliveryCommissionService.getPaidCommissionTotal();
+        BigDecimal pendingWithdrawalTotal = withdrawalService.getPendingWithdrawalTotal();
+        BigDecimal approvedWithdrawalTotal = withdrawalService.getApprovedWithdrawalTotal();
+        BigDecimal paidWithdrawalTotal = withdrawalService.getPaidWithdrawalTotal();
+        BigDecimal rejectedWithdrawalTotal = withdrawalService.getRejectedWithdrawalTotal();
 
         return new AdminDashboardResponse(
                 restaurantRepository.findByActiveTrue().size(),
@@ -129,6 +136,10 @@ public class AdminDashboardService {
                 pendingCommissionTotal,
                 pendingCommissionTotal,
                 paidCommissionTotal,
+                pendingWithdrawalTotal,
+                approvedWithdrawalTotal,
+                paidWithdrawalTotal,
+                rejectedWithdrawalTotal,
                 deliveryCommissionService.getPersonnelEarnings(),
                 buildVolumeTrends(transactions),
                 topRestaurants

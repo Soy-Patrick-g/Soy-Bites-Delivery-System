@@ -85,6 +85,7 @@ public class RestaurantService {
                 .map(review -> new ReviewResponse(
                         review.getId(),
                         review.getCustomer().getFullName(),
+                        review.getCustomer().getProfileImageUrl(),
                         review.getRating(),
                         review.getComment(),
                         review.getCreatedAt()
@@ -133,7 +134,7 @@ public class RestaurantService {
         review.setCustomer(customer);
         review.setRestaurant(restaurant);
         review.setOrder(order);
-        review.setRating(request.rating());
+        review.setRating(request.rating().setScale(1, RoundingMode.HALF_UP));
         review.setComment(request.comment());
         Review saved = reviewRepository.save(review);
 
@@ -143,6 +144,7 @@ public class RestaurantService {
         return new ReviewResponse(
                 saved.getId(),
                 customer.getFullName(),
+                customer.getProfileImageUrl(),
                 saved.getRating(),
                 saved.getComment(),
                 saved.getCreatedAt()
@@ -152,10 +154,12 @@ public class RestaurantService {
     private void recalculateAverageRating(Restaurant restaurant) {
         List<Review> reviews = reviewRepository.findByRestaurantIdOrderByCreatedAtDesc(restaurant.getId());
         double average = reviews.stream()
-                .mapToInt(Review::getRating)
+                .map(Review::getRating)
+                .filter(rating -> rating != null)
+                .mapToDouble(BigDecimal::doubleValue)
                 .average()
                 .orElse(0.0);
-        restaurant.setAverageRating(BigDecimal.valueOf(average).setScale(2, RoundingMode.HALF_UP));
+        restaurant.setAverageRating(BigDecimal.valueOf(average).setScale(1, RoundingMode.HALF_UP));
         restaurantRepository.save(restaurant);
     }
 

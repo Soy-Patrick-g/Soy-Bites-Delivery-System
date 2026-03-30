@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosHeaders, InternalAxiosRequestConfig } from "axios";
 import {
   Coordinates,
   AdminAuditLog,
@@ -10,6 +10,8 @@ import {
   AdminTransaction,
   AdminTransactionFilters,
   AdminUserInsight,
+  AdminWithdrawal,
+  AccountProfile,
   AuthSession,
   CreateWithdrawalRequest,
   CreateRestaurantBranchRequest,
@@ -32,6 +34,7 @@ import {
   RestaurantDetail,
   RestaurantSummary,
   ResetPasswordRequest,
+  UpdateAccountProfileRequest,
   UploadedImage,
   WithdrawalBankOption,
   WithdrawalDashboard,
@@ -41,9 +44,82 @@ import {
   UpdateOwnerMenuItemRequest
 } from "@/lib/types";
 
+const AUTH_STORAGE_KEY = "foodhub.auth";
+const DEFAULT_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api";
+
+function resolveApiBaseUrl() {
+  if (typeof window !== "undefined") {
+    const configuredBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const preferredBaseUrl = configuredBaseUrl
+      ? normalizeLoopbackApiBaseUrl(configuredBaseUrl, window.location.hostname)
+      : `${window.location.protocol}//${window.location.hostname}:8080/api`;
+
+    return preferredBaseUrl;
+  }
+
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+
+  return DEFAULT_API_BASE_URL;
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api"
+  baseURL: DEFAULT_API_BASE_URL,
+  withCredentials: true
 });
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  config.baseURL = resolveApiBaseUrl();
+  config.headers = withPersistedAuthHeader(config.headers);
+  return config;
+});
+
+function withPersistedAuthHeader(headers?: InternalAxiosRequestConfig["headers"]) {
+  const nextHeaders = headers instanceof AxiosHeaders ? headers : new AxiosHeaders(headers);
+
+  if (!nextHeaders.has("Authorization")) {
+    const persistedToken = getPersistedAuthToken();
+    if (persistedToken) {
+      nextHeaders.set("Authorization", `Bearer ${persistedToken}`);
+    }
+  }
+
+  return nextHeaders;
+}
+
+function getPersistedAuthToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const rawSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!rawSession) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawSession) as Partial<AuthSession>;
+    return typeof parsed.token === "string" && parsed.token.trim() ? parsed.token : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeLoopbackApiBaseUrl(baseUrl: string, browserHostname: string) {
+  try {
+    const parsed = new URL(baseUrl);
+    const hostnames = new Set(["localhost", "127.0.0.1"]);
+    if (hostnames.has(parsed.hostname) && hostnames.has(browserHostname) && parsed.hostname !== browserHostname) {
+      parsed.hostname = browserHostname;
+      return parsed.toString().replace(/\/$/, "");
+    }
+
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return baseUrl;
+  }
+}
 
 function cleanParams(params: Record<string, string | undefined>) {
   return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== ""));
@@ -277,6 +353,52 @@ export async function updateAdminDeliveryCommissionStatus(
   }
 }
 
+export async function getAdminWithdrawals(token: string): Promise<AdminWithdrawal[]> {
+  try {
+    const { data } = await api.get<AdminWithdrawal[]>("/admin/withdrawals", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Withdrawal requests");
+  }
+}
+
+export async function approveAdminWithdrawal(token: string, withdrawalId: number): Promise<AdminWithdrawal> {
+  try {
+    const { data } = await api.patch<AdminWithdrawal>(`/admin/withdrawals/${withdrawalId}/approve`, undefined, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Withdrawal approval");
+  }
+}
+
+export async function rejectAdminWithdrawal(token: string, withdrawalId: number, reason?: string): Promise<AdminWithdrawal> {
+  try {
+    const { data } = await api.patch<AdminWithdrawal>(
+      `/admin/withdrawals/${withdrawalId}/reject`,
+      reason ? { reason } : {},
+      { headers: authHeaders(token) }
+    );
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Withdrawal rejection");
+  }
+}
+
+export async function payAdminWithdrawal(token: string, withdrawalId: number): Promise<AdminWithdrawal> {
+  try {
+    const { data } = await api.patch<AdminWithdrawal>(`/admin/withdrawals/${withdrawalId}/pay`, undefined, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Withdrawal payout");
+  }
+}
+
 export async function getAdminDeliverySettings(token: string): Promise<AdminDeliverySettings> {
   try {
     const { data } = await api.get<AdminDeliverySettings>("/admin/settings/delivery", {
@@ -409,6 +531,43 @@ export async function registerDeliveryPerson(request: DeliveryRegisterRequest): 
     return data;
   } catch (error) {
     throw toMessage(error, "Rider registration");
+  }
+}
+
+export async function uploadProfileImage(file: File): Promise<UploadedImage> {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const { data } = await api.post<UploadedImage>("/uploads/profile-images", formData);
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Profile image upload");
+  }
+}
+
+export async function getAccountProfile(token: string): Promise<AccountProfile> {
+  try {
+    const { data } = await api.get<AccountProfile>("/account/profile", {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Account details");
+  }
+}
+
+export async function updateAccountProfile(
+  token: string,
+  payload: UpdateAccountProfileRequest
+): Promise<AccountProfile> {
+  try {
+    const { data } = await api.patch<AccountProfile>("/account/profile", payload, {
+      headers: authHeaders(token)
+    });
+    return data;
+  } catch (error) {
+    throw toMessage(error, "Account update");
   }
 }
 
@@ -634,7 +793,7 @@ export async function getDeliveryWithdrawalBanks(token: string): Promise<Withdra
 
 export async function createDeliveryWithdrawal(token: string, payload: CreateWithdrawalRequest): Promise<WithdrawalRecord> {
   try {
-    const { data } = await api.post<WithdrawalRecord>("/delivery/withdrawals", payload, {
+    const { data } = await api.post<WithdrawalRecord>("/withdrawal-requests/delivery", payload, {
       headers: authHeaders(token)
     });
     return data;
@@ -678,7 +837,7 @@ export async function getOwnerWithdrawalBanks(token: string): Promise<Withdrawal
 
 export async function createOwnerWithdrawal(token: string, payload: CreateWithdrawalRequest): Promise<WithdrawalRecord> {
   try {
-    const { data } = await api.post<WithdrawalRecord>("/owner/withdrawals", payload, {
+    const { data } = await api.post<WithdrawalRecord>("/withdrawal-requests/owner", payload, {
       headers: authHeaders(token)
     });
     return data;

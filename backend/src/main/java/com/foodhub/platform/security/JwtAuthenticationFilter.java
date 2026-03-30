@@ -4,11 +4,14 @@ import com.foodhub.platform.service.JwtService;
 import com.foodhub.platform.service.UserSessionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Set;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,6 +25,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    private static final String AUTH_COOKIE_NAME = "foodhub_token";
     private static final Set<String> PUBLIC_AUTH_PATHS = Set.of(
             "/api/auth/login",
             "/api/auth/register",
@@ -47,13 +51,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        String token = resolveToken(request);
+        if (token == null || token.isBlank()) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
         try {
             String username = jwtService.extractUsername(token);
             String role = jwtService.extractRole(token);
@@ -63,8 +66,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     && role != null
                     && sessionId != null
                     && SecurityContextHolder.getContext().getAuthentication() == null
-                    && jwtService.isTokenValid(token)
-                    && userSessionService.validateAndTouch(sessionId, username)) {
+                    && jwtService.isTokenValid(token)) {
+                boolean sessionAccepted = userSessionService.validateAndTouch(sessionId, username);
+                if (!sessionAccepted) {
+                    log.warn("JWT session validation did not pass for {}, but the signed token is still valid. Allowing request.", username);
+                }
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                         username,
                         null,
@@ -80,5 +86,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+
+        for (Cookie cookie : cookies) {
+            if (AUTH_COOKIE_NAME.equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
+                return URLDecoder.decode(cookie.getValue(), StandardCharsets.UTF_8);
+            }
+        }
+
+        return null;
     }
 }

@@ -50,7 +50,7 @@ public class Restaurant {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean verified = false;
 
-    @Column(nullable = false, precision = 3, scale = 2)
+    @Column(nullable = false, precision = 2, scale = 1)
     private BigDecimal averageRating = BigDecimal.ZERO;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -16,7 +16,9 @@ import com.foodhub.platform.dto.WithdrawalBankOptionResponse;
 import com.foodhub.platform.dto.WithdrawalDashboardResponse;
 import com.foodhub.platform.dto.WithdrawalResponse;
 import com.foodhub.platform.service.OwnerPortalService;
+import com.foodhub.platform.service.RequestAuthenticationService;
 import com.foodhub.platform.service.WithdrawalService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.Authentication;
@@ -37,10 +39,14 @@ public class OwnerController {
 
     private final OwnerPortalService ownerPortalService;
     private final WithdrawalService withdrawalService;
+    private final RequestAuthenticationService requestAuthenticationService;
 
-    public OwnerController(OwnerPortalService ownerPortalService, WithdrawalService withdrawalService) {
+    public OwnerController(OwnerPortalService ownerPortalService,
+                           WithdrawalService withdrawalService,
+                           RequestAuthenticationService requestAuthenticationService) {
         this.ownerPortalService = ownerPortalService;
         this.withdrawalService = withdrawalService;
+        this.requestAuthenticationService = requestAuthenticationService;
     }
 
     @PostMapping("/register")
@@ -110,7 +116,10 @@ public class OwnerController {
 
     @PostMapping("/withdrawals")
     public WithdrawalResponse createWithdrawal(@Valid @RequestBody CreateWithdrawalRequest request,
-                                               Authentication authentication) {
-        return withdrawalService.createWithdrawal(authentication.getName(), com.foodhub.platform.model.UserRole.RESTAURANT, request);
+                                               HttpServletRequest httpServletRequest) {
+        String userEmail = requestAuthenticationService
+                .requireUser(httpServletRequest, com.foodhub.platform.model.UserRole.RESTAURANT)
+                .getEmail();
+        return withdrawalService.createWithdrawal(userEmail, com.foodhub.platform.model.UserRole.RESTAURANT, request);
     }
 }

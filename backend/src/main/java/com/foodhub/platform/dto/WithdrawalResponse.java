@@ -9,6 +9,7 @@ public record WithdrawalResponse(
         String status,
         String provider,
         String reference,
+        String paystackReference,
         String destinationType,
         String bankCode,
         String accountNumber,
@@ -16,6 +17,7 @@ public record WithdrawalResponse(
         String reason,
         String failureReason,
         Instant createdAt,
+        Instant reviewedAt,
         Instant processedAt
 ) {
 }

@@ -1,5 +1,6 @@
 package com.foodhub.platform.service;
 
+import com.foodhub.platform.dto.AdminWithdrawalResponse;
 import com.foodhub.platform.dto.CreateWithdrawalRequest;
 import com.foodhub.platform.dto.WithdrawalBankOptionResponse;
 import com.foodhub.platform.dto.WithdrawalDashboardResponse;
@@ -15,6 +16,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -36,7 +38,7 @@ public class WithdrawalService {
     private final RestClient restClient;
     private final AuditLogService auditLogService;
 
-    @Value("${app.paystack.enabled:false}")
+    @Value("${app.paystack.enabled:true}")
     private boolean paystackEnabled;
 
     @Value("${app.paystack.base-url:https://api.paystack.co}")
@@ -58,19 +60,33 @@ public class WithdrawalService {
     @Transactional(readOnly = true)
     public WithdrawalDashboardResponse getDashboard(String userEmail, UserRole expectedRole) {
         AppUser user = findUser(userEmail, expectedRole);
+        List<AccountWithdrawal> withdrawals = accountWithdrawalRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+        BigDecimal walletBalance = scaleMoney(user.getAccountBalance());
+        BigDecimal reservedBalance = sumReserved(withdrawals);
+        BigDecimal availableBalance = scaleMoney(walletBalance.subtract(reservedBalance).max(BigDecimal.ZERO));
+        BigDecimal withdrawnTotal = sumByStatuses(withdrawals, List.of(WithdrawalStatus.PAID, WithdrawalStatus.COMPLETED));
+
         return new WithdrawalDashboardResponse(
                 user.getFullName(),
                 user.getEmail(),
-                scaleMoney(user.getAccountBalance()),
-                accountWithdrawalRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                        .map(this::toResponse)
-                        .toList()
+                walletBalance,
+                reservedBalance,
+                availableBalance,
+                withdrawnTotal,
+                withdrawals.stream().map(this::toResponse).toList()
         );
     }
 
     @Transactional(readOnly = true)
+    public List<AdminWithdrawalResponse> getAdminWithdrawals() {
+        return accountWithdrawalRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toAdminResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<WithdrawalBankOptionResponse> getBankOptions() {
-        if (!paystackEnabled || paystackSecretKey == null || paystackSecretKey.isBlank()) {
+        if (!isPaystackConfigured()) {
             return List.of();
         }
 
@@ -107,58 +123,167 @@ public class WithdrawalService {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid withdrawal amount");
         }
-        if (user.getAccountBalance().compareTo(amount) < 0) {
+
+        BigDecimal availableBalance = getAvailableBalance(user);
+        if (availableBalance.compareTo(amount) < 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Your available balance is lower than this withdrawal amount");
         }
 
         AccountWithdrawal withdrawal = new AccountWithdrawal();
         withdrawal.setUser(user);
         withdrawal.setAmount(amount);
-        withdrawal.setProvider("PAYSTACK");
+        withdrawal.setProvider("PAYSTACK_TEST");
+        withdrawal.setStatus(WithdrawalStatus.PENDING);
         withdrawal.setDestinationType(normalizeDestinationType(request.destinationType()));
         withdrawal.setBankCode(request.bankCode().trim());
         withdrawal.setAccountNumber(request.accountNumber().trim());
         withdrawal.setAccountName(request.accountName().trim());
         withdrawal.setReason(blankToNull(request.reason()));
         withdrawal.setReference(generateReference(user.getId()));
+        withdrawal.setFailureReason(null);
 
-        if (!paystackEnabled || paystackSecretKey == null || paystackSecretKey.isBlank()) {
-            withdrawal.setStatus(WithdrawalStatus.COMPLETED);
-            withdrawal.setProcessedAt(Instant.now());
-            withdrawal.setProviderStatus("success");
-            withdrawal.setTransferCode("demo-transfer");
-            user.setAccountBalance(scaleMoney(user.getAccountBalance().subtract(amount)));
-            appUserRepository.save(user);
-            AccountWithdrawal saved = accountWithdrawalRepository.save(withdrawal);
-            auditLogService.log(user.getEmail(), user.getRole(), "WITHDRAWAL_CREATE", "WITHDRAWAL", String.valueOf(saved.getId()), "Demo withdrawal completed");
-            return toResponse(saved);
+        AccountWithdrawal saved = accountWithdrawalRepository.save(withdrawal);
+        auditLogService.log(
+                user.getEmail(),
+                user.getRole(),
+                "WITHDRAWAL_REQUEST",
+                "WITHDRAWAL",
+                String.valueOf(saved.getId()),
+                "Withdrawal request submitted for " + amount
+        );
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public AdminWithdrawalResponse approveWithdrawal(Long withdrawalId, String adminEmail) {
+        AccountWithdrawal withdrawal = getWithdrawalForAdminAction(withdrawalId);
+        WithdrawalStatus normalized = normalizeStatus(withdrawal.getStatus());
+        if (normalized == WithdrawalStatus.REJECTED || normalized == WithdrawalStatus.PAID) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This withdrawal can no longer be approved");
+        }
+
+        withdrawal.setStatus(WithdrawalStatus.APPROVED);
+        withdrawal.setReviewedAt(Instant.now());
+        withdrawal.setReviewedByEmail(adminEmail);
+        withdrawal.setFailureReason(null);
+        AccountWithdrawal saved = accountWithdrawalRepository.save(withdrawal);
+        auditLogService.log(adminEmail, UserRole.ADMIN, "WITHDRAWAL_APPROVE", "WITHDRAWAL", String.valueOf(saved.getId()), saved.getReference());
+        return toAdminResponse(saved);
+    }
+
+    @Transactional
+    public AdminWithdrawalResponse rejectWithdrawal(Long withdrawalId, String adminEmail, String reason) {
+        AccountWithdrawal withdrawal = getWithdrawalForAdminAction(withdrawalId);
+        WithdrawalStatus normalized = normalizeStatus(withdrawal.getStatus());
+        if (normalized == WithdrawalStatus.PAID) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A paid withdrawal cannot be rejected");
+        }
+
+        withdrawal.setStatus(WithdrawalStatus.REJECTED);
+        withdrawal.setReviewedAt(Instant.now());
+        withdrawal.setReviewedByEmail(adminEmail);
+        withdrawal.setFailureReason(blankToNull(reason) == null ? "Rejected by admin" : reason.trim());
+        AccountWithdrawal saved = accountWithdrawalRepository.save(withdrawal);
+        auditLogService.log(adminEmail, UserRole.ADMIN, "WITHDRAWAL_REJECT", "WITHDRAWAL", String.valueOf(saved.getId()), saved.getReference());
+        return toAdminResponse(saved);
+    }
+
+    @Transactional
+    public AdminWithdrawalResponse processApprovedWithdrawal(Long withdrawalId, String adminEmail) {
+        AccountWithdrawal withdrawal = getWithdrawalForAdminAction(withdrawalId);
+        WithdrawalStatus normalized = normalizeStatus(withdrawal.getStatus());
+        if (normalized != WithdrawalStatus.APPROVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Approve this withdrawal before sending the payout");
+        }
+
+        AppUser user = withdrawal.getUser();
+        BigDecimal currentBalance = scaleMoney(user.getAccountBalance());
+        if (currentBalance.compareTo(scaleMoney(withdrawal.getAmount())) < 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This account no longer has enough balance for the payout");
+        }
+        if (!isPaystackConfigured()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Paystack test mode is not configured for payouts right now");
         }
 
         try {
             TransferRecipientData recipient = createTransferRecipient(withdrawal);
-            TransferData transfer = initiateTransfer(recipient.recipient_code(), amount, withdrawal.getReference(), withdrawal.getReason());
+            TransferData transfer = initiateTransfer(
+                    recipient.recipient_code(),
+                    withdrawal.getAmount(),
+                    withdrawal.getReference(),
+                    withdrawal.getReason()
+            );
 
             withdrawal.setRecipientCode(recipient.recipient_code());
             withdrawal.setTransferCode(transfer.transfer_code());
+            withdrawal.setPaystackReference(transfer.reference());
             withdrawal.setProviderStatus(transfer.status());
-            withdrawal.setStatus(mapTransferStatus(transfer.status()));
-            if (withdrawal.getStatus() != WithdrawalStatus.FAILED) {
+
+            if (isTransferSuccessful(transfer.status())) {
+                withdrawal.setStatus(WithdrawalStatus.PAID);
                 withdrawal.setProcessedAt(Instant.now());
-                user.setAccountBalance(scaleMoney(user.getAccountBalance().subtract(amount)));
+                withdrawal.setFailureReason(null);
+                user.setAccountBalance(scaleMoney(currentBalance.subtract(scaleMoney(withdrawal.getAmount()))));
                 appUserRepository.save(user);
+            } else {
+                withdrawal.setFailureReason("Paystack has not confirmed this payout yet. You can retry once the transfer status is clear.");
             }
 
             AccountWithdrawal saved = accountWithdrawalRepository.save(withdrawal);
-            auditLogService.log(user.getEmail(), user.getRole(), "WITHDRAWAL_CREATE", "WITHDRAWAL", String.valueOf(saved.getId()), "Withdrawal submitted with status " + saved.getStatus());
-            return toResponse(saved);
+            auditLogService.log(adminEmail, UserRole.ADMIN, "WITHDRAWAL_PROCESS", "WITHDRAWAL", String.valueOf(saved.getId()), saved.getReference());
+            return toAdminResponse(saved);
         } catch (RestClientResponseException exception) {
-            String message = extractPaystackMessage(exception);
-            withdrawal.setStatus(WithdrawalStatus.FAILED);
-            withdrawal.setFailureReason(message);
+            withdrawal.setFailureReason(extractPaystackMessage(exception));
+            withdrawal.setProviderStatus("failed");
             AccountWithdrawal saved = accountWithdrawalRepository.save(withdrawal);
-            auditLogService.log(user.getEmail(), user.getRole(), "WITHDRAWAL_CREATE_FAILED", "WITHDRAWAL", String.valueOf(saved.getId()), message);
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, message);
+            auditLogService.log(adminEmail, UserRole.ADMIN, "WITHDRAWAL_PROCESS_FAILED", "WITHDRAWAL", String.valueOf(saved.getId()), saved.getFailureReason());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, saved.getFailureReason());
         }
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getPendingWithdrawalTotal() {
+        return sumByStatuses(accountWithdrawalRepository.findAllByOrderByCreatedAtDesc(), List.of(WithdrawalStatus.PENDING, WithdrawalStatus.PROCESSING));
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getApprovedWithdrawalTotal() {
+        return sumByStatuses(accountWithdrawalRepository.findAllByOrderByCreatedAtDesc(), List.of(WithdrawalStatus.APPROVED));
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getPaidWithdrawalTotal() {
+        return sumByStatuses(accountWithdrawalRepository.findAllByOrderByCreatedAtDesc(), List.of(WithdrawalStatus.PAID, WithdrawalStatus.COMPLETED));
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getRejectedWithdrawalTotal() {
+        return sumByStatuses(accountWithdrawalRepository.findAllByOrderByCreatedAtDesc(), List.of(WithdrawalStatus.REJECTED, WithdrawalStatus.FAILED));
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getReservedBalanceForUser(Long userId) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
+        return sumReserved(accountWithdrawalRepository.findByUserIdOrderByCreatedAtDesc(user.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getWithdrawnTotalForUser(Long userId) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
+        return sumByStatuses(accountWithdrawalRepository.findByUserIdOrderByCreatedAtDesc(user.getId()), List.of(WithdrawalStatus.PAID, WithdrawalStatus.COMPLETED));
+    }
+
+    public BigDecimal getAvailableBalance(AppUser user) {
+        BigDecimal walletBalance = scaleMoney(user.getAccountBalance());
+        BigDecimal reservedBalance = getReservedBalanceForUser(user.getId());
+        return scaleMoney(walletBalance.subtract(reservedBalance).max(BigDecimal.ZERO));
+    }
+
+    private AccountWithdrawal getWithdrawalForAdminAction(Long withdrawalId) {
+        return accountWithdrawalRepository.findById(withdrawalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Withdrawal request not found"));
     }
 
     private AppUser findUser(String email, UserRole expectedRole) {
@@ -208,7 +333,7 @@ public class WithdrawalService {
                         "balance",
                         amount.movePointRight(2).longValueExact(),
                         recipientCode,
-                        reason == null ? "FoodHub withdrawal" : reason,
+                        reason == null ? "FoodHub withdrawal payout" : reason,
                         CURRENCY,
                         reference.toLowerCase(Locale.ROOT)
                 ))
@@ -226,9 +351,10 @@ public class WithdrawalService {
         return new WithdrawalResponse(
                 withdrawal.getId(),
                 withdrawal.getAmount(),
-                withdrawal.getStatus().name(),
+                displayStatus(withdrawal.getStatus()).name(),
                 withdrawal.getProvider(),
                 withdrawal.getReference(),
+                withdrawal.getPaystackReference(),
                 withdrawal.getDestinationType(),
                 withdrawal.getBankCode(),
                 withdrawal.getAccountNumber(),
@@ -236,20 +362,72 @@ public class WithdrawalService {
                 withdrawal.getReason(),
                 withdrawal.getFailureReason(),
                 withdrawal.getCreatedAt(),
+                withdrawal.getReviewedAt(),
                 withdrawal.getProcessedAt()
         );
     }
 
-    private WithdrawalStatus mapTransferStatus(String status) {
+    private AdminWithdrawalResponse toAdminResponse(AccountWithdrawal withdrawal) {
+        return new AdminWithdrawalResponse(
+                withdrawal.getId(),
+                withdrawal.getUser().getId(),
+                withdrawal.getUser().getFullName(),
+                withdrawal.getUser().getEmail(),
+                withdrawal.getUser().getRole().name(),
+                withdrawal.getAmount(),
+                displayStatus(withdrawal.getStatus()).name(),
+                withdrawal.getProvider(),
+                withdrawal.getReference(),
+                withdrawal.getPaystackReference(),
+                withdrawal.getDestinationType(),
+                withdrawal.getBankCode(),
+                withdrawal.getAccountNumber(),
+                withdrawal.getAccountName(),
+                withdrawal.getReason(),
+                withdrawal.getFailureReason(),
+                withdrawal.getCreatedAt(),
+                withdrawal.getReviewedAt(),
+                withdrawal.getProcessedAt()
+        );
+    }
+
+    private WithdrawalStatus normalizeStatus(WithdrawalStatus status) {
         if (status == null) {
-            return WithdrawalStatus.PROCESSING;
+            return WithdrawalStatus.PENDING;
         }
 
-        return switch (status.toLowerCase(Locale.ROOT)) {
-            case "success" -> WithdrawalStatus.COMPLETED;
-            case "failed", "reversed" -> WithdrawalStatus.FAILED;
-            default -> WithdrawalStatus.PROCESSING;
+        return switch (status) {
+            case PROCESSING -> WithdrawalStatus.PENDING;
+            case COMPLETED -> WithdrawalStatus.PAID;
+            case FAILED -> WithdrawalStatus.REJECTED;
+            default -> status;
         };
+    }
+
+    private WithdrawalStatus displayStatus(WithdrawalStatus status) {
+        return normalizeStatus(status);
+    }
+
+    private BigDecimal sumReserved(List<AccountWithdrawal> withdrawals) {
+        return sumByStatuses(withdrawals, List.of(WithdrawalStatus.PENDING, WithdrawalStatus.APPROVED, WithdrawalStatus.PROCESSING));
+    }
+
+    private BigDecimal sumByStatuses(List<AccountWithdrawal> withdrawals, List<WithdrawalStatus> targetStatuses) {
+        return withdrawals.stream()
+                .filter(Objects::nonNull)
+                .filter(withdrawal -> targetStatuses.contains(displayStatus(withdrawal.getStatus())))
+                .map(AccountWithdrawal::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isTransferSuccessful(String status) {
+        return status != null && "success".equalsIgnoreCase(status);
+    }
+
+    private boolean isPaystackConfigured() {
+        return paystackEnabled && paystackSecretKey != null && !paystackSecretKey.isBlank();
     }
 
     private String normalizeDestinationType(String rawValue) {

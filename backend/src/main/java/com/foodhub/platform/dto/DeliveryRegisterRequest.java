@@ -11,8 +11,10 @@ public record DeliveryRegisterRequest(
         @NotBlank
         @Pattern(regexp = ValidationPatterns.STRONG_PASSWORD, message = ValidationPatterns.STRONG_PASSWORD_MESSAGE)
         String password,
+        @NotBlank String confirmPassword,
         @NotBlank String city,
         @NotBlank String vehicleType,
+        String profileImageUrl,
         @NotNull Double latitude,
         @NotNull Double longitude
 ) {

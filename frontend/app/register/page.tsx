@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { PasswordField } from "@/components/PasswordField";
+import { ProfileImagePicker } from "@/components/ProfileImagePicker";
 import { AuthSplitLayout } from "@/components/layout/AuthSplitLayout";
 import { registerUser } from "@/lib/auth-api";
 import { isStrongPassword, STRONG_PASSWORD_RULE } from "@/lib/password";
@@ -16,6 +17,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,7 +41,8 @@ export default function RegisterPage() {
         fullName,
         email,
         password,
-        confirmPassword
+        confirmPassword,
+        profileImageUrl
       });
       login(session);
       router.push("/");
@@ -97,6 +100,12 @@ export default function RegisterPage() {
 
         <PasswordField label="Password" value={password} onChange={setPassword} />
         <PasswordField label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} />
+        <ProfileImagePicker
+          name={fullName || "FoodHub customer"}
+          imageUrl={profileImageUrl}
+          onChange={setProfileImageUrl}
+          description="Add a profile picture now or continue with the default FoodHub avatar."
+        />
 
         {error ? (
           <p className="rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</p>

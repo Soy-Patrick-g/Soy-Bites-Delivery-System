@@ -14,6 +14,7 @@ public record RegisterRequest(
         String password,
         @NotBlank String confirmPassword,
         @NotNull UserRole role,
+        String profileImageUrl,
         Double latitude,
         Double longitude
 ) {

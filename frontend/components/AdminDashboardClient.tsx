@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { DashboardStat } from "@/components/DashboardStat";
+import { RouteLoader } from "@/components/RouteLoader";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import {
+  approveAdminWithdrawal,
   deleteAdminUser,
   exportAdminTransactionsCsv,
   formatCurrency,
@@ -17,7 +19,10 @@ import {
   getAdminSessions,
   getAdminTransactions,
   getAdminUsers,
+  getAdminWithdrawals,
   getDashboard,
+  payAdminWithdrawal,
+  rejectAdminWithdrawal,
   updateAdminDeliveryCommissionStatus,
   updateAdminDeliverySettings,
   updateAdminRestaurantStatus,
@@ -34,7 +39,8 @@ import {
   AdminTrendPoint,
   AdminTransaction,
   AdminTransactionFilters,
-  AdminUserInsight
+  AdminUserInsight,
+  AdminWithdrawal
 } from "@/lib/types";
 
 const DEFAULT_FILTERS: AdminTransactionFilters = {
@@ -59,6 +65,7 @@ export function AdminDashboardClient() {
   const [users, setUsers] = useState<AdminUserInsight[]>([]);
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
   const [deliveryCommissions, setDeliveryCommissions] = useState<AdminDeliveryCommission[]>([]);
+  const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([]);
   const [deliverySettings, setDeliverySettings] = useState<AdminDeliverySettings | null>(null);
   const [deliverySettingsDraft, setDeliverySettingsDraft] = useState<AdminDeliverySettings | null>(null);
   const [draftFilters, setDraftFilters] = useState<AdminTransactionFilters>(DEFAULT_FILTERS);
@@ -102,6 +109,7 @@ export function AdminDashboardClient() {
           nextUsers,
           nextRestaurants,
           nextDeliveryCommissions,
+          nextWithdrawals,
           nextDeliverySettings
         ] = await Promise.all([
           getDashboard(adminToken),
@@ -111,6 +119,7 @@ export function AdminDashboardClient() {
           getAdminUsers(adminToken, userSearch),
           getAdminRestaurants(adminToken, restaurantSearch),
           getAdminDeliveryCommissions(adminToken),
+          getAdminWithdrawals(adminToken),
           getAdminDeliverySettings(adminToken)
         ]);
 
@@ -125,6 +134,7 @@ export function AdminDashboardClient() {
         setUsers(nextUsers);
         setRestaurants(nextRestaurants);
         setDeliveryCommissions(nextDeliveryCommissions);
+        setWithdrawals(nextWithdrawals);
         setDeliverySettings(nextDeliverySettings);
         setDeliverySettingsDraft(nextDeliverySettings);
       } catch (nextError) {
@@ -284,6 +294,60 @@ export function AdminDashboardClient() {
     }
   }
 
+  async function handleApproveWithdrawal(withdrawalId: number) {
+    if (!session) {
+      return;
+    }
+
+    try {
+      setBusyActionKey(`withdrawal-approve-${withdrawalId}`);
+      setError(null);
+      const updated = await approveAdminWithdrawal(session.token, withdrawalId);
+      setWithdrawals((current) => current.map((entry) => (entry.id === withdrawalId ? updated : entry)));
+      setRefreshKey((current) => current + 1);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to approve withdrawal");
+    } finally {
+      setBusyActionKey(null);
+    }
+  }
+
+  async function handleRejectWithdrawal(withdrawalId: number) {
+    if (!session) {
+      return;
+    }
+
+    try {
+      setBusyActionKey(`withdrawal-reject-${withdrawalId}`);
+      setError(null);
+      const updated = await rejectAdminWithdrawal(session.token, withdrawalId);
+      setWithdrawals((current) => current.map((entry) => (entry.id === withdrawalId ? updated : entry)));
+      setRefreshKey((current) => current + 1);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to reject withdrawal");
+    } finally {
+      setBusyActionKey(null);
+    }
+  }
+
+  async function handlePayWithdrawal(withdrawalId: number) {
+    if (!session) {
+      return;
+    }
+
+    try {
+      setBusyActionKey(`withdrawal-pay-${withdrawalId}`);
+      setError(null);
+      const updated = await payAdminWithdrawal(session.token, withdrawalId);
+      setWithdrawals((current) => current.map((entry) => (entry.id === withdrawalId ? updated : entry)));
+      setRefreshKey((current) => current + 1);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to send withdrawal payout");
+    } finally {
+      setBusyActionKey(null);
+    }
+  }
+
   async function handleSaveDeliverySettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!session || !deliverySettingsDraft) {
@@ -387,14 +451,13 @@ export function AdminDashboardClient() {
   if (!isReady || isLoading) {
     return (
       <Shell>
-        <div className="space-y-3">
-          <p className="text-sm text-cream/70">Loading admin dashboard...</p>
-          {showDashboardSlowLoadNotice ? (
-            <p className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm text-cream/72">
-              This is taking longer than usual, but the admin dashboard is still loading.
-            </p>
-          ) : null}
-        </div>
+        <RouteLoader
+          fullScreen={false}
+          title="Preparing admin dashboard"
+          message={showDashboardSlowLoadNotice
+            ? "This is taking longer than usual, but the admin dashboard is still loading."
+            : "Loading transactions, users, restaurants, and financial controls."}
+        />
       </Shell>
     );
   }
@@ -469,6 +532,13 @@ export function AdminDashboardClient() {
         <DashboardStat label="Commission owed" value={formatCurrency(dashboard.totalCommissionOwed)} hint="Pending commission liability across all riders" />
         <DashboardStat label="Pending commissions" value={formatCurrency(dashboard.pendingCommissionTotal)} hint="Awaiting payout confirmation" />
         <DashboardStat label="Paid commissions" value={formatCurrency(dashboard.paidCommissionTotal)} hint="Already settled to riders" />
+      </section>
+
+      <section className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardStat label="Pending withdrawals" value={formatCurrency(dashboard.pendingWithdrawalTotal)} hint="Requested and waiting for admin review" />
+        <DashboardStat label="Approved withdrawals" value={formatCurrency(dashboard.approvedWithdrawalTotal)} hint="Approved and reserved for payout" />
+        <DashboardStat label="Paid withdrawals" value={formatCurrency(dashboard.paidWithdrawalTotal)} hint="Successfully sent through Paystack test mode" />
+        <DashboardStat label="Rejected withdrawals" value={formatCurrency(dashboard.rejectedWithdrawalTotal)} hint="Requests that were declined or failed validation" />
       </section>
 
       <section className="mt-10 grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
@@ -574,27 +644,27 @@ export function AdminDashboardClient() {
               dashboard.deliveryPersonnelEarnings.map((person) => (
                 <div key={person.deliveryPersonId} className="rounded-3xl border border-white/10 bg-white/8 p-5">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="text-lg font-semibold">{person.deliveryPersonName}</p>
+                    <div className="min-w-0">
+                      <p className="break-words text-lg font-semibold">{person.deliveryPersonName}</p>
                       <p className="text-sm text-cream/68">{person.deliveryPersonEmail}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="min-w-0 md:max-w-[14rem] md:text-right">
                       <p className="text-sm text-cream/68">Total earnings</p>
-                      <p className="text-2xl font-semibold">{formatCurrency(person.totalEarnings)}</p>
+                      <p className="break-words text-[clamp(1.35rem,2vw,2rem)] font-semibold leading-tight">{formatCurrency(person.totalEarnings)}</p>
                     </div>
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
+                    <div className="min-w-0 rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
                       <p className="text-xs uppercase tracking-[0.14em] text-citrus">Completed</p>
-                      <p className="mt-2 text-lg font-semibold text-cream">{person.completedDeliveries}</p>
+                      <p className="mt-2 break-words text-lg font-semibold text-cream">{person.completedDeliveries}</p>
                     </div>
-                    <div className="rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
+                    <div className="min-w-0 rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
                       <p className="text-xs uppercase tracking-[0.14em] text-citrus">Pending</p>
-                      <p className="mt-2 text-lg font-semibold text-cream">{formatCurrency(person.pendingEarnings)}</p>
+                      <p className="mt-2 break-words text-lg font-semibold text-cream">{formatCurrency(person.pendingEarnings)}</p>
                     </div>
-                    <div className="rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
+                    <div className="min-w-0 rounded-2xl bg-white/6 px-4 py-3 text-sm text-cream/78">
                       <p className="text-xs uppercase tracking-[0.14em] text-citrus">Paid</p>
-                      <p className="mt-2 text-lg font-semibold text-cream">{formatCurrency(person.paidEarnings)}</p>
+                      <p className="mt-2 break-words text-lg font-semibold text-cream">{formatCurrency(person.paidEarnings)}</p>
                     </div>
                   </div>
                 </div>
@@ -603,6 +673,96 @@ export function AdminDashboardClient() {
               <p className="rounded-2xl bg-white/8 px-4 py-3 text-sm text-cream/70">No rider commissions have been recorded yet.</p>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="mt-10 rounded-[36px] border border-white/10 bg-white/6 p-5 shadow-soft sm:p-8">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.18em] text-citrus">Withdrawals</p>
+            <h2 className="mt-2 text-3xl font-semibold">Approval queue and payout execution</h2>
+          </div>
+          <p className="text-sm text-cream/68">Approve requests first, then send the payout through Paystack test mode.</p>
+        </div>
+
+        <div className="mt-6 overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="text-cream/68">
+              <tr className="border-b border-white/10">
+                <th className="px-3 py-3">Account</th>
+                <th className="px-3 py-3">Amount</th>
+                <th className="px-3 py-3">Destination</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="px-3 py-3">Created</th>
+                <th className="px-3 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {withdrawals.length ? (
+                withdrawals.map((withdrawal) => (
+                  <tr key={withdrawal.id} className="border-b border-white/8 align-top">
+                    <td className="px-3 py-4">
+                      <p className="font-medium text-cream">{withdrawal.userName}</p>
+                      <p className="text-xs text-cream/65">{withdrawal.userEmail}</p>
+                      <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-citrus">{withdrawal.userRole}</p>
+                    </td>
+                    <td className="px-3 py-4">
+                      <p className="break-words font-semibold text-cream">{formatCurrency(withdrawal.amount)}</p>
+                      <p className="mt-1 text-xs text-cream/65">{withdrawal.reference}</p>
+                    </td>
+                    <td className="px-3 py-4">
+                      <p className="text-cream">{withdrawal.accountName}</p>
+                      <p className="text-xs text-cream/65">{withdrawal.accountNumber}</p>
+                      <p className="mt-1 text-xs text-cream/65">{withdrawal.destinationType === "mobile_money" ? "Mobile money" : "Bank account"} · {withdrawal.bankCode}</p>
+                    </td>
+                    <td className="px-3 py-4">
+                      <AdminWithdrawalStatusPill status={withdrawal.status} />
+                      {withdrawal.failureReason ? <p className="mt-2 max-w-xs text-xs text-red-200">{withdrawal.failureReason}</p> : null}
+                    </td>
+                    <td className="px-3 py-4 text-cream/68">{formatDateTime(withdrawal.createdAt)}</td>
+                    <td className="px-3 py-4">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {withdrawal.status === "PENDING" ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleApproveWithdrawal(withdrawal.id)}
+                              disabled={busyActionKey === `withdrawal-approve-${withdrawal.id}`}
+                              className="rounded-full bg-citrus px-4 py-2 text-xs font-semibold text-ink disabled:opacity-60"
+                            >
+                              {busyActionKey === `withdrawal-approve-${withdrawal.id}` ? "Approving..." : "Approve"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleRejectWithdrawal(withdrawal.id)}
+                              disabled={busyActionKey === `withdrawal-reject-${withdrawal.id}`}
+                              className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-cream disabled:opacity-60"
+                            >
+                              {busyActionKey === `withdrawal-reject-${withdrawal.id}` ? "Rejecting..." : "Reject"}
+                            </button>
+                          </>
+                        ) : null}
+                        {withdrawal.status === "APPROVED" ? (
+                          <button
+                            type="button"
+                            onClick={() => void handlePayWithdrawal(withdrawal.id)}
+                            disabled={busyActionKey === `withdrawal-pay-${withdrawal.id}`}
+                            className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                          >
+                            {busyActionKey === `withdrawal-pay-${withdrawal.id}` ? "Sending..." : "Send payout"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-3 py-4 text-cream/68">No withdrawal requests have been recorded yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -1287,6 +1447,21 @@ function Badge({ children, tone }: { children: ReactNode; tone: "neutral" | "amb
   return (
     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${styles[tone]}`}>
       {children}
+    </span>
+  );
+}
+
+function AdminWithdrawalStatusPill({ status }: { status: AdminWithdrawal["status"] }) {
+  const styles = {
+    PENDING: "border-amber-300/30 bg-amber-500/10 text-amber-100",
+    APPROVED: "border-sky-300/30 bg-sky-500/10 text-sky-100",
+    REJECTED: "border-red-300/30 bg-red-500/10 text-red-100",
+    PAID: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100"
+  } satisfies Record<AdminWithdrawal["status"], string>;
+
+  return (
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${styles[status]}`}>
+      {status}
     </span>
   );
 }

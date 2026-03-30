@@ -11,7 +11,9 @@ import com.foodhub.platform.dto.WithdrawalBankOptionResponse;
 import com.foodhub.platform.dto.WithdrawalDashboardResponse;
 import com.foodhub.platform.dto.WithdrawalResponse;
 import com.foodhub.platform.service.DeliveryPortalService;
+import com.foodhub.platform.service.RequestAuthenticationService;
 import com.foodhub.platform.service.WithdrawalService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.Authentication;
@@ -29,10 +31,14 @@ public class DeliveryController {
 
     private final DeliveryPortalService deliveryPortalService;
     private final WithdrawalService withdrawalService;
+    private final RequestAuthenticationService requestAuthenticationService;
 
-    public DeliveryController(DeliveryPortalService deliveryPortalService, WithdrawalService withdrawalService) {
+    public DeliveryController(DeliveryPortalService deliveryPortalService,
+                              WithdrawalService withdrawalService,
+                              RequestAuthenticationService requestAuthenticationService) {
         this.deliveryPortalService = deliveryPortalService;
         this.withdrawalService = withdrawalService;
+        this.requestAuthenticationService = requestAuthenticationService;
     }
 
     @PostMapping("/register")
@@ -76,13 +82,16 @@ public class DeliveryController {
     }
 
     @GetMapping("/withdrawals/banks")
-    public List<WithdrawalBankOptionResponse> getWithdrawalBanks() {
+    public List<WithdrawalBankOptionResponse> getWithdrawalBanks(Authentication authentication) {
         return withdrawalService.getBankOptions();
     }
 
     @PostMapping("/withdrawals")
     public WithdrawalResponse createWithdrawal(@Valid @RequestBody CreateWithdrawalRequest request,
-                                               Authentication authentication) {
-        return withdrawalService.createWithdrawal(authentication.getName(), com.foodhub.platform.model.UserRole.DELIVERY, request);
+                                               HttpServletRequest httpServletRequest) {
+        String userEmail = requestAuthenticationService
+                .requireUser(httpServletRequest, com.foodhub.platform.model.UserRole.DELIVERY)
+                .getEmail();
+        return withdrawalService.createWithdrawal(userEmail, com.foodhub.platform.model.UserRole.DELIVERY, request);
     }
 }

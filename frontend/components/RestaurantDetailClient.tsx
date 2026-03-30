@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Avatar } from "@/components/Avatar";
 import { useBrowseLocation } from "@/components/BrowseLocationProvider";
 import { LocationMap } from "@/components/LocationMap";
+import { RouteLoader } from "@/components/RouteLoader";
+import { StarRatingDisplay } from "@/components/StarRatingDisplay";
 import { useSlowLoadNotice } from "@/hooks/useSlowLoadNotice";
 import { formatCurrency, getRestaurant } from "@/lib/api";
 import { RestaurantDetail } from "@/lib/types";
@@ -49,14 +52,13 @@ export function RestaurantDetailClient({ id }: { id: string }) {
   if (isLoading || !restaurant) {
     return (
       <main className="app-shell py-8 sm:py-12">
-        <div className="rounded-[32px] border border-ink/10 bg-white/90 p-8 shadow-soft">
-          <p className="text-sm text-ink/70">Loading restaurant details...</p>
-          {showSlowLoadNotice ? (
-            <p className="mt-4 rounded-2xl bg-cream px-4 py-3 text-sm text-ink/70">
-              This is taking longer than usual, but the restaurant details are still loading.
-            </p>
-          ) : null}
-        </div>
+        <RouteLoader
+          fullScreen={false}
+          title="Preparing restaurant details"
+          message={showSlowLoadNotice
+            ? "This is taking longer than usual, but the restaurant details are still loading."
+            : "Loading the menu, reviews, and delivery estimate."}
+        />
       </main>
     );
   }
@@ -88,7 +90,10 @@ export function RestaurantDetailClient({ id }: { id: string }) {
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-3xl bg-white/8 p-5">
               <p className="text-sm text-cream/70">Average rating</p>
-              <h2 className="mt-3 text-4xl font-semibold">{restaurant.averageRating.toFixed(1)}</h2>
+              <div className="mt-3 flex items-center gap-3">
+                <h2 className="text-4xl font-semibold">{restaurant.averageRating.toFixed(1)}</h2>
+                <StarRatingDisplay rating={restaurant.averageRating} sizeClassName="h-5 w-5" />
+              </div>
             </div>
             <div className="rounded-3xl bg-white/8 p-5">
               <p className="text-sm text-cream/70">Reviews</p>
@@ -182,13 +187,23 @@ export function RestaurantDetailClient({ id }: { id: string }) {
             {restaurant.reviews.length ? (
               restaurant.reviews.map((review) => (
                 <article key={review.id} className="rounded-[28px] border border-ink/10 bg-white/90 p-6 shadow-soft">
-                  <div className="flex items-center justify-between gap-4">
-                    <h3 className="text-lg font-semibold text-ink">{review.customerName}</h3>
-                    <span className="rounded-full bg-olive/10 px-3 py-1 text-sm text-olive">
-                      {review.rating}/5
-                    </span>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar
+                        name={review.customerName}
+                        src={review.customerProfileImageUrl}
+                        className="h-12 w-12 border border-white/60"
+                      />
+                      <div>
+                        <h3 className="text-lg font-semibold text-ink">{review.customerName}</h3>
+                        <p className="text-sm text-ink/60">
+                          {new Intl.DateTimeFormat("en-GH", { dateStyle: "medium" }).format(new Date(review.createdAt))}
+                        </p>
+                      </div>
+                    </div>
+                    <StarRatingDisplay rating={review.rating} showValue className="rounded-full bg-olive/10 px-3 py-2 text-olive" />
                   </div>
-                  <p className="mt-4 text-sm leading-6 text-ink/70">{review.comment}</p>
+                  <p className="mt-4 text-sm leading-6 text-ink/70">{review.comment || "The customer left a rating without a written comment."}</p>
                 </article>
               ))
             ) : (

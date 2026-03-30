@@ -216,7 +216,7 @@ public class DataSeeder {
         Review review = new Review();
         review.setCustomer(customer);
         review.setRestaurant(restaurant);
-        review.setRating(rating);
+        review.setRating(BigDecimal.valueOf(rating).setScale(1));
         review.setComment(comment);
         return review;
     }
