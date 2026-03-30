@@ -1,33 +1,60 @@
-# Location-Aware Multi-Vendor Food Ordering Platform
+# SOY BITES
 
-Full-stack monorepo for a location-aware multi-vendor food ordering experience with secure JWT authentication, distance-based discovery, delivery fee calculation, payment simulation, order tracking, ratings, and an admin dashboard.
+SOY BITES is a full-stack, location-aware, multi-vendor food ordering platform built for customers, restaurant operators, delivery personnel, and administrators.
 
-## Structure
+## Project Structure
 
-- `backend/` Spring Boot API with JPA, Security, JWT scaffolding, demo Paystack integration, and seeded sample data
-- `frontend/` Next.js App Router UI with TailwindCSS, Axios client helpers, restaurant discovery, checkout, tracking, and admin pages
-- `docs/` architecture notes
+- `backend/` Spring Boot API with JPA, Spring Security, JWT authentication, WebSocket support, Cloudinary uploads, Brevo email delivery, and Paystack-ready payment/withdrawal flows
+- `frontend/` Next.js App Router application with Tailwind CSS, Axios API integration, role-based dashboards, maps, checkout, reviews, and real-time admin views
+- `docs/` architecture and presentation documentation
 
-## Planned Product Capabilities
+## Core Features
 
-- Multi-vendor restaurant onboarding and menu management
-- Location-aware restaurant filtering using latitude and longitude
-- Dynamic delivery fee calculation based on distance
-- Secure simulated online payment flow with Paystack-ready integration points
-- Order lifecycle tracking from `RECEIVED` to `DELIVERED`
-- Ratings and reviews with average score aggregation
-- Admin analytics for restaurants, orders, reviews, and revenue
+- Multi-role authentication for customers, restaurants, delivery personnel, and administrators
+- Multi-restaurant checkout and grouped delivery routing
+- Restaurant and branch management with branch-wide menu sync
+- Address-first location selection with map support
+- Delivery dashboards with live route support
+- Decimal ratings and review system
+- Profile image uploads with Cloudinary
+- Password reset via Brevo email
+- Paystack integration paths for payments and withdrawals
+- Admin analytics, moderation, and commission oversight
 
-## Running The Stack
+## Tech Stack
 
-This workspace currently does not have a working `npm` or Maven/Gradle executable available, so the codebase is scaffolded and documented but not executed here.
+### Frontend
+
+- Next.js 15
+- React 19
+- TypeScript
+- Tailwind CSS
+- Axios
+- Leaflet / React Leaflet
 
 ### Backend
 
-1. Install Maven 3.9+ or Gradle and Java 17.
-2. Create a PostgreSQL database named `foodhub`.
-3. Copy `backend/.env.example` values into your environment.
-4. Run:
+- Java 17
+- Spring Boot 3.3.5
+- Spring Security
+- Spring Data JPA / Hibernate
+- PostgreSQL
+- JWT
+- WebSocket support
+
+### External Services
+
+- Paystack
+- Cloudinary
+- Brevo
+
+## Running the Project
+
+### Backend
+
+1. Install Java 17 and Maven.
+2. Configure your database and environment variables.
+3. Run:
 
 ```bash
 cd backend
@@ -36,8 +63,8 @@ mvn spring-boot:run
 
 ### Frontend
 
-1. Install a working `npm`, `pnpm`, or `yarn`.
-2. Copy `frontend/.env.example` into `.env.local`.
+1. Install Node.js.
+2. Configure `frontend/.env.local` if needed.
 3. Run:
 
 ```bash
@@ -46,14 +73,13 @@ npm install
 npm run dev
 ```
 
-## Default Demo Accounts
+## Demo Accounts
 
 - Admin: `admin@foodhub.dev` / `Password123!`
 - Restaurant owner: `vendor@foodhub.dev` / `Password123!`
 - Customer: `user@foodhub.dev` / `Password123!`
 
-## Notes
+## Additional Documentation
 
-- Paystack is wired in demo-first mode. If `PAYSTACK_SECRET_KEY` is absent, the backend returns a safe simulated transaction reference.
-- Seed data includes restaurants, menu items, reviews, and example coordinates to make the map/discovery UI immediately meaningful.
-- Automated backend checks are available in `backend/tools/check-api.ps1` and `backend/tools/FoodHub Local.postman_collection.json`.
+- [Architecture Overview](C:\Users\ayamp\OneDrive\Documentos\New%20project\docs\architecture.md)
+- [Presentation Guide](C:\Users\ayamp\OneDrive\Documentos\New%20project\docs\SOY_BITES_PRESENTATION_GUIDE.md)

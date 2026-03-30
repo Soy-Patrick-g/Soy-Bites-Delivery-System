@@ -6,6 +6,7 @@ import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCart } from "@/components/CartProvider";
+import { APP_NAME } from "@/lib/brand";
 
 export function Header() {
   const { isReady, logout, session } = useAuth();
@@ -51,7 +52,7 @@ export function Header() {
     <header className="sticky top-0 z-20 border-b border-white/10 bg-luxury/90 backdrop-blur">
       <div className="app-shell flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
         <Link href={homeHref} className="text-lg font-semibold tracking-[0.22em] text-cream uppercase">
-          FoodHub
+          {APP_NAME}
         </Link>
         <nav className="flex w-full flex-wrap items-center gap-x-4 gap-y-3 text-sm text-cream/80 md:w-auto md:justify-end md:gap-5">
           {navigation.map((item) => (

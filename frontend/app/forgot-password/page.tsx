@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { AuthSplitLayout } from "@/components/layout/AuthSplitLayout";
 import { forgotPassword } from "@/lib/auth-api";
+import { APP_NAME } from "@/lib/brand";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -32,7 +33,7 @@ export default function ForgotPasswordPage() {
     <AuthSplitLayout
       eyebrow="Forgot Password"
       title="Reset access without creating a new account"
-      description="Enter the email address tied to your FoodHub account and we&apos;ll prepare a password reset link."
+      description={`Enter the email address tied to your ${APP_NAME} account and we&apos;ll prepare a password reset link.`}
       leftContent={
         <div className="rounded-[28px] border border-white/10 bg-white/6 p-5 text-sm">
           <p className="font-semibold uppercase tracking-[0.18em] text-citrus">How it works</p>

@@ -4,6 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
 import { ReorderDeliveredOrderButton } from "@/components/ReorderDeliveredOrderButton";
 import { StarRatingDisplay } from "@/components/StarRatingDisplay";
+import { APP_NAME } from "@/lib/brand";
 import type { Order } from "@/lib/types";
 
 export function CompletedOrderSpotlight({ order }: { order: Order }) {
@@ -38,7 +39,7 @@ export function CompletedOrderSpotlight({ order }: { order: Order }) {
             <div>
               <h3 className="text-xl font-semibold text-ink">{order.deliveryPersonName || "Delivery partner assigned"}</h3>
               <p className="mt-1 text-sm text-ink/65">
-                {order.deliveryPersonVehicleType ? `${order.deliveryPersonVehicleType} delivery partner` : "FoodHub delivery partner"}
+                {order.deliveryPersonVehicleType ? `${order.deliveryPersonVehicleType} delivery partner` : `${APP_NAME} delivery partner`}
               </p>
               {order.completedAt ? (
                 <p className="mt-1 text-sm text-ink/60">

@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { PasswordField } from "@/components/PasswordField";
 import { AuthSplitLayout } from "@/components/layout/AuthSplitLayout";
 import { login } from "@/lib/auth-api";
+import { APP_NAME } from "@/lib/brand";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -56,8 +57,8 @@ export default function LoginPage() {
   return (
     <AuthSplitLayout
       eyebrow="Login"
-      title="Welcome back to FoodHub"
-      description="Sign in to place orders, track deliveries, or manage your FoodHub account."
+      title={`Welcome back to ${APP_NAME}`}
+      description={`Sign in to place orders, track deliveries, or manage your ${APP_NAME} account.`}
       leftContent={
         <>
           <div className="rounded-[28px] border border-white/10 bg-white/6 p-5 text-sm">
@@ -68,7 +69,7 @@ export default function LoginPage() {
           </div>
 
           <div className="rounded-[28px] border border-white/10 bg-white/6 p-5 text-sm">
-            <p className="font-semibold uppercase tracking-[0.18em] text-citrus">Want to sell on FoodHub?</p>
+            <p className="font-semibold uppercase tracking-[0.18em] text-citrus">Want to sell on {APP_NAME}?</p>
             <p className="mt-3 leading-7 text-cream/72">
               Create your restaurant account, register your location, and start receiving customer orders.
             </p>
@@ -124,7 +125,7 @@ export default function LoginPage() {
       </form>
 
       <div className="mt-6 text-sm text-ink/68">
-        <p>Need an account? Choose the option that matches how you use FoodHub.</p>
+        <p>Need an account? Choose the option that matches how you use {APP_NAME}.</p>
         <div className="mt-4 flex flex-wrap gap-4">
           <Link href="/register" className="inline-flex font-semibold text-olive">
             Create customer account

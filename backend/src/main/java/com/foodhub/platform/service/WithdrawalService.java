@@ -333,7 +333,7 @@ public class WithdrawalService {
                         "balance",
                         amount.movePointRight(2).longValueExact(),
                         recipientCode,
-                        reason == null ? "FoodHub withdrawal payout" : reason,
+                        reason == null ? "SOY BITES withdrawal payout" : reason,
                         CURRENCY,
                         reference.toLowerCase(Locale.ROOT)
                 ))

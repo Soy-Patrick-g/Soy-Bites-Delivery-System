@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HelpIcon, HomeIcon, InfoIcon, InstagramIcon, LinkedInIcon, MailIcon, ShieldIcon, XSocialIcon } from "@/components/icons";
+import { APP_NAME } from "@/lib/brand";
 
 const quickLinks = [
   { href: "/", label: "Home", icon: HomeIcon },
@@ -32,7 +33,7 @@ export function Footer() {
         >
           <div className="grid gap-10 px-6 py-10 sm:px-8 lg:grid-cols-[1.2fr_1fr_1fr] lg:px-10">
             <div>
-              <p className="text-lg font-semibold uppercase tracking-[0.22em] text-ink dark:text-cream">FoodHub</p>
+              <p className="text-lg font-semibold uppercase tracking-[0.22em] text-ink dark:text-cream">{APP_NAME}</p>
               <p className="mt-4 max-w-md text-sm leading-7 text-ink/72 dark:text-cream/78">
                 Thoughtful food delivery for customers, restaurants, riders, and operators who want a dependable platform.
               </p>
@@ -96,7 +97,7 @@ export function Footer() {
               color: "rgb(var(--color-muted))"
             }}
           >
-            <p>&copy; {new Date().getFullYear()} FoodHub. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} {APP_NAME}. All rights reserved.</p>
             <p>Built for secure ordering, reliable fulfillment, and polished customer experiences.</p>
           </div>
         </div>

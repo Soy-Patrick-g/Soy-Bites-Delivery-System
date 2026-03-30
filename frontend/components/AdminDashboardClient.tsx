@@ -399,7 +399,7 @@ export function AdminDashboardClient() {
     popup.document.write(`
       <html>
         <head>
-          <title>FoodHub Transactions</title>
+          <title>SOY BITES Transactions</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
             h1 { margin-bottom: 8px; }
@@ -410,7 +410,7 @@ export function AdminDashboardClient() {
           </style>
         </head>
         <body>
-          <h1>FoodHub Transactions</h1>
+          <h1>SOY BITES Transactions</h1>
           <p>Generated ${new Date().toLocaleString()}</p>
           <table>
             <thead>

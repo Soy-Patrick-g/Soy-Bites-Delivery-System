@@ -8,6 +8,7 @@ import { PasswordField } from "@/components/PasswordField";
 import { ProfileImagePicker } from "@/components/ProfileImagePicker";
 import { AuthSplitLayout } from "@/components/layout/AuthSplitLayout";
 import { registerUser } from "@/lib/auth-api";
+import { APP_NAME } from "@/lib/brand";
 import { isStrongPassword, STRONG_PASSWORD_RULE } from "@/lib/password";
 
 export default function RegisterPage() {
@@ -56,7 +57,7 @@ export default function RegisterPage() {
   return (
     <AuthSplitLayout
       eyebrow="Create Account"
-      title="Join FoodHub"
+      title={`Join ${APP_NAME}`}
       description="Create your customer account to order from nearby restaurants, save your details, and track deliveries."
       leftContent={
         <>
@@ -101,10 +102,10 @@ export default function RegisterPage() {
         <PasswordField label="Password" value={password} onChange={setPassword} />
         <PasswordField label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} />
         <ProfileImagePicker
-          name={fullName || "FoodHub customer"}
+          name={fullName || `${APP_NAME} customer`}
           imageUrl={profileImageUrl}
           onChange={setProfileImageUrl}
-          description="Add a profile picture now or continue with the default FoodHub avatar."
+          description={`Add a profile picture now or continue with the default ${APP_NAME} avatar.`}
         />
 
         {error ? (

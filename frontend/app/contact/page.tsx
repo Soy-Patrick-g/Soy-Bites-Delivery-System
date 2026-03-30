@@ -1,10 +1,11 @@
 import { StaticPageShell } from "@/components/StaticPageShell";
+import { APP_NAME } from "@/lib/brand";
 
 export default function ContactPage() {
   return (
     <StaticPageShell
       eyebrow="Contact"
-      title="Get in touch with the FoodHub team"
+      title={`Get in touch with the ${APP_NAME} team`}
       intro="Reach out for account support, delivery questions, restaurant onboarding help, or general platform assistance."
     >
       <article className="surface-panel p-6">

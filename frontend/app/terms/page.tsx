@@ -1,11 +1,12 @@
 import { StaticPageShell } from "@/components/StaticPageShell";
+import { APP_NAME } from "@/lib/brand";
 
 export default function TermsPage() {
   return (
     <StaticPageShell
       eyebrow="Terms"
-      title="FoodHub terms of use"
-      intro="These terms explain the responsibilities and expectations that apply when using FoodHub as a customer, restaurant, rider, or administrator."
+      title={`${APP_NAME} terms of use`}
+      intro={`These terms explain the responsibilities and expectations that apply when using ${APP_NAME} as a customer, restaurant, rider, or administrator.`}
     >
       <article className="surface-panel p-6">
         <h2 className="text-2xl font-semibold text-ink">Use of the platform</h2>

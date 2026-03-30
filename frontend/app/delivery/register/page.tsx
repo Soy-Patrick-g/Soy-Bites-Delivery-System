@@ -8,6 +8,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { PasswordField } from "@/components/PasswordField";
 import { ProfileImagePicker } from "@/components/ProfileImagePicker";
 import { registerDeliveryPerson } from "@/lib/api";
+import { APP_NAME } from "@/lib/brand";
 import type { LocationSelection } from "@/lib/location";
 import { isStrongPassword, STRONG_PASSWORD_RULE } from "@/lib/password";
 
@@ -88,7 +89,7 @@ export default function DeliveryRegisterPage() {
             </div>
             <div className="md:col-span-2">
               <ProfileImagePicker
-                name={form.fullName || "FoodHub rider"}
+                name={form.fullName || `${APP_NAME} rider`}
                 imageUrl={profileImageUrl}
                 onChange={setProfileImageUrl}
                 description="Upload a rider photo now or continue with the default avatar."

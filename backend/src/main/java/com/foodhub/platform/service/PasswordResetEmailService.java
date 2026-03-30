@@ -29,7 +29,7 @@ public class PasswordResetEmailService {
         brevoEmailService.sendTransactionalEmail(
                 user.getEmail(),
                 user.getFullName(),
-                "Reset your FoodHub password",
+                "Reset your SOY BITES password",
                 buildMessage(user, resetUrl, expiresAt)
         );
     }
@@ -39,7 +39,7 @@ public class PasswordResetEmailService {
         return """
                 Hello %s,
 
-                We received a request to reset your FoodHub password.
+                We received a request to reset your SOY BITES password.
 
                 Your reset code is: %s
 

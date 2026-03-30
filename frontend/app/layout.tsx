@@ -9,6 +9,7 @@ import { CartProvider } from "@/components/CartProvider";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
 const display = DM_Serif_Display({
   subsets: ["latin"],
@@ -22,7 +23,7 @@ const sans = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "FoodHub | Multi-Vendor Food Delivery",
+  title: `${APP_NAME} | ${APP_TAGLINE}`,
   description: "Location-aware food ordering platform with multi-vendor discovery and live order tracking."
 };
 

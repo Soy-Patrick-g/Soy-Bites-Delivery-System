@@ -1,4 +1,5 @@
 import { StaticPageShell } from "@/components/StaticPageShell";
+import { APP_NAME } from "@/lib/brand";
 
 const questions = [
   {
@@ -7,7 +8,7 @@ const questions = [
   },
   {
     question: "Can I order from multiple restaurants at once?",
-    answer: "Yes. FoodHub supports combined checkout across multiple restaurants when items are added to one cart."
+    answer: `Yes. ${APP_NAME} supports combined checkout across multiple restaurants when items are added to one cart.`
   },
   {
     question: "When can I leave a review?",

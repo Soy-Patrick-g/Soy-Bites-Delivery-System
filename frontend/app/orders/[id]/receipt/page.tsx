@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ReceiptActions } from "@/components/ReceiptActions";
 import { formatCurrency, getOrderBatch } from "@/lib/api";
+import { APP_NAME } from "@/lib/brand";
 import { formatOrderStatus, formatPaymentStatus } from "@/lib/order-display";
 
 type ReceiptPageProps = {
@@ -39,7 +40,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
         <section className="rounded-[36px] border border-ink/10 bg-white px-8 py-10 shadow-soft print:rounded-none print:border-0 print:shadow-none">
           <div className="flex flex-wrap items-start justify-between gap-6 border-b border-ink/10 pb-8">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">FoodHub receipt</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-olive">{APP_NAME} receipt</p>
               <h2 className="mt-3 font-serif text-4xl text-ink">Combined checkout</h2>
               <p className="mt-3 text-sm text-ink/68">{batch.groupReference}</p>
               <p className="mt-2 text-sm text-ink/60">{batch.orders.length} restaurant orders grouped into one payment.</p>

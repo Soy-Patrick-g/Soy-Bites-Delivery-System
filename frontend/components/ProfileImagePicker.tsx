@@ -4,6 +4,7 @@ import { useId, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { CameraIcon, UploadIcon } from "@/components/icons";
 import { uploadProfileImage } from "@/lib/api";
+import { APP_NAME } from "@/lib/brand";
 
 type ProfileImagePickerProps = {
   name: string;
@@ -48,7 +49,7 @@ export function ProfileImagePicker({
   return (
     <div className="rounded-[28px] border border-ink/10 bg-cream/70 p-5">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-        <Avatar name={name || "FoodHub"} src={imageUrl} className="h-24 w-24 border border-white/60" />
+        <Avatar name={name || APP_NAME} src={imageUrl} className="h-24 w-24 border border-white/60" />
         <div className="flex-1">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-olive">{title}</p>
           <p className="mt-2 text-sm leading-6 text-ink/70">{description}</p>
